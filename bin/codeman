@@ -21,10 +21,13 @@ SCRIPT_PATH="$(resolve_source_path "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(dirname -- "$SCRIPT_PATH")"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 VERSION_FILE="$REPO_ROOT/VERSION"
+CONFIG_DIR="${CODEMAN_CONFIG_DIR:-$HOME/.config/codeman}"
+CONFIG_FILE="$CONFIG_DIR/config.env"
 
 CODEMAN_NOTIFY_LAST_WAIT=0
 CODEMAN_NOTIFY_LAST_COMPLETE=0
 CODEMAN_NOTIFY_SUPPRESS=0
+CODEMAN_SAVED_NOTIFY_PREFIX="${CODEMAN_SAVED_NOTIFY_PREFIX:-}"
 
 read_version() {
   if [ -f "$VERSION_FILE" ]; then
@@ -32,6 +35,65 @@ read_version() {
   else
     printf '0.0.0-unknown'
   fi
+}
+
+load_saved_config() {
+  if [ -f "$CONFIG_FILE" ]; then
+    # shellcheck disable=SC1090
+    . "$CONFIG_FILE"
+  fi
+}
+
+default_host_label() {
+  hostname -s 2>/dev/null || hostname 2>/dev/null || echo "unknown-host"
+}
+
+effective_notify_prefix() {
+  if [ -n "${CODEMAN_NOTIFY_PREFIX:-}" ]; then
+    printf '%s\n' "$CODEMAN_NOTIFY_PREFIX"
+  elif [ -n "${CODEMAN_SAVED_NOTIFY_PREFIX:-}" ]; then
+    printf '%s\n' "$CODEMAN_SAVED_NOTIFY_PREFIX"
+  elif [ -n "${CODEMAN_NOTIFY_HOST_CODENAME:-}" ]; then
+    printf '%s\n' "$CODEMAN_NOTIFY_HOST_CODENAME"
+  else
+    default_host_label
+  fi
+}
+
+default_project_label() {
+  local root
+  root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  basename "$root"
+}
+
+effective_project_label() {
+  if [ -n "${CODEMAN_NOTIFY_PROJECT_CODENAME:-}" ]; then
+    printf '%s\n' "$CODEMAN_NOTIFY_PROJECT_CODENAME"
+  else
+    default_project_label
+  fi
+}
+
+save_notify_prefix() {
+  local value="$1"
+  local tmp
+  mkdir -p "$CONFIG_DIR"
+  tmp="$(mktemp)"
+  if [ -f "$CONFIG_FILE" ]; then
+    awk '!/^CODEMAN_SAVED_NOTIFY_PREFIX=/' "$CONFIG_FILE" > "$tmp"
+  else
+    : > "$tmp"
+  fi
+  printf 'CODEMAN_SAVED_NOTIFY_PREFIX=%q\n' "$value" >> "$tmp"
+  mv "$tmp" "$CONFIG_FILE"
+}
+
+clear_notify_prefix() {
+  local tmp
+  [ -f "$CONFIG_FILE" ] || return 0
+  tmp="$(mktemp)"
+  awk '!/^CODEMAN_SAVED_NOTIFY_PREFIX=/' "$CONFIG_FILE" > "$tmp"
+  mv "$tmp" "$CONFIG_FILE"
 }
 
 print_help() {
@@ -45,6 +107,7 @@ USAGE
   codeman [--no-notify|-N] fork [mode] [fork_args...]
   codeman version
   codeman upgrade
+  codeman prefix [show|set <value>|clear]
   codeman notify-test
   codeman help | modes | aliases
 
@@ -66,13 +129,16 @@ INTERACTIVE MODE
   - with fzf: arrow keys + Enter
   - without fzf: type mode name (l1..l7 or alias)
 
-DISCORD NOTIFICATIONS 🔔
-  Set CODEMAN_DISCORD_WEBHOOK_URL to enable notifications while Codex runs.
+WEBHOOK NOTIFICATIONS 🔔
+  Set CODEMAN_SLACK_WEBHOOK_URL and/or CODEMAN_DISCORD_WEBHOOK_URL.
   Triggered on:
   - wait/approval signals (sandbox denied, permission issues)
   - task completion
 
   Optional env:
+  - CODEMAN_NOTIFY_PREFIX="HOST-CODENAME"
+  - CODEMAN_NOTIFY_HOST_CODENAME="HOST-CODENAME"
+  - CODEMAN_NOTIFY_PROJECT_CODENAME="PROJECT-CODENAME"
   - CODEMAN_NOTIFY_ON=wait,complete
   - CODEMAN_NOTIFY_COOLDOWN_SEC=30
   - CODEMAN_NOTIFY_DISABLED=1
@@ -83,6 +149,7 @@ DISCORD NOTIFICATIONS 🔔
 EXAMPLES
   codeman
   codeman -N l6
+  codeman prefix set "MBP-Blue"
   codeman full autonomy "clean build artifacts"
   codeman resume l3 --last
   codeman notify-test
@@ -129,6 +196,7 @@ alias cdx-ffull='codeman fork full --last'
 alias cdx-v='codeman version'
 alias cdx-menu='codeman menu'
 alias cdx-quiet='codeman -N'
+alias cdx-prefix='codeman prefix'
 EOF_ALIASES
 }
 
@@ -210,42 +278,62 @@ notify_disabled() {
   return 1
 }
 
+has_webhook_config() {
+  [ -n "${CODEMAN_SLACK_WEBHOOK_URL:-}" ] || [ -n "${CODEMAN_DISCORD_WEBHOOK_URL:-}" ]
+}
+
 notify_enabled() {
-  [ -n "${CODEMAN_DISCORD_WEBHOOK_URL:-}" ] && ! notify_disabled
+  has_webhook_config && ! notify_disabled && command -v curl >/dev/null 2>&1
 }
 
 print_notify_status() {
   if notify_enabled; then
-    echo "🔔 Discord wired: notifications are ON."
+    local targets=""
+    [ -n "${CODEMAN_SLACK_WEBHOOK_URL:-}" ] && targets="Slack"
+    if [ -n "${CODEMAN_DISCORD_WEBHOOK_URL:-}" ]; then
+      if [ -n "$targets" ]; then
+        targets="$targets+Discord"
+      else
+        targets="Discord"
+      fi
+    fi
+    echo "🔔 Notifications wired ($targets): notifications are ON."
     return 0
   fi
 
-  if [ -n "${CODEMAN_DISCORD_WEBHOOK_URL:-}" ]; then
+  if has_webhook_config; then
     if notify_disabled; then
-      echo "🔕 Discord is configured, but notifications are disabled (--no-notify/-N or CODEMAN_NOTIFY_DISABLED=1)."
+      echo "🔕 Webhook is configured, but notifications are disabled (--no-notify/-N or CODEMAN_NOTIFY_DISABLED=1)."
     else
-      echo "⚠️ Discord webhook is configured, but notifications are unavailable (check curl/jq dependencies)."
+      echo "⚠️ Webhook is configured, but notifications are unavailable (check curl)."
     fi
     return 0
   fi
 
-  echo "ℹ️ No Discord integration configured. There won't be notifications."
+  echo "ℹ️ No Slack/Discord integration configured. There won't be notifications."
 }
 
-send_discord_message() {
+send_notification_message() {
   local message="$1"
-  local webhook="${CODEMAN_DISCORD_WEBHOOK_URL:-}"
-  [ -n "$webhook" ] || return 0
+  local slack="${CODEMAN_SLACK_WEBHOOK_URL:-}"
+  local discord="${CODEMAN_DISCORD_WEBHOOK_URL:-}"
   command -v curl >/dev/null 2>&1 || return 0
 
-  local payload
+  local slack_payload discord_payload
   if command -v jq >/dev/null 2>&1; then
-    payload="$(jq -cn --arg content "$message" '{content:$content}')"
+    slack_payload="$(jq -cn --arg text "$message" '{text:$text}')"
+    discord_payload="$(jq -cn --arg content "$message" '{content:$content}')"
   else
-    payload="$(printf '{"content":"%s"}' "$(printf '%s' "$message" | sed 's/"/\\"/g')")"
+    slack_payload="$(printf '{"text":"%s"}' "$(printf '%s' "$message" | sed 's/"/\\"/g')")"
+    discord_payload="$(printf '{"content":"%s"}' "$(printf '%s' "$message" | sed 's/"/\\"/g')")"
   fi
 
-  curl -fsS -m 8 -H 'Content-Type: application/json' -d "$payload" "$webhook" >/dev/null 2>&1 || true
+  if [ -n "$slack" ]; then
+    curl -fsS -m 8 -H 'Content-Type: application/json' -d "$slack_payload" "$slack" >/dev/null 2>&1 || true
+  fi
+  if [ -n "$discord" ]; then
+    curl -fsS -m 8 -H 'Content-Type: application/json' -d "$discord_payload" "$discord" >/dev/null 2>&1 || true
+  fi
 }
 
 notify_with_cooldown() {
@@ -270,7 +358,7 @@ notify_with_cooldown() {
     CODEMAN_NOTIFY_LAST_COMPLETE="$now"
   fi
 
-  send_discord_message "$message"
+  send_notification_message "$message"
 }
 
 latest_session_file() {
@@ -280,7 +368,8 @@ latest_session_file() {
 handle_session_line() {
   local line="$1"
   local mode="$2"
-  local project="$3"
+  local prefix="$3"
+  local project="$4"
   local line_type evt out
 
   command -v jq >/dev/null 2>&1 || return 0
@@ -291,7 +380,7 @@ handle_session_line() {
     event_msg)
       evt="$(printf '%s\n' "$line" | jq -r '.payload.type // empty' 2>/dev/null || true)"
       if [ "$evt" = "task_complete" ] && event_enabled complete; then
-        notify_with_cooldown complete "✅🚀 Codeman: task complete in \\`$project\\` (mode: \\`$mode\\`)."
+        notify_with_cooldown complete "✅ ${prefix} 📁 ${project} 🚀 Codeman task complete (mode: ${mode})."
       fi
       ;;
     response_item)
@@ -299,7 +388,7 @@ handle_session_line() {
       if [ "$evt" = "function_call_output" ] && event_enabled wait; then
         out="$(printf '%s\n' "$line" | jq -r '.payload.output // ""' 2>/dev/null || true)"
         if printf '%s' "$out" | grep -Eiq 'SandboxDenied|require_escalated|Operation not permitted|permission denied|ask for approval|request approval'; then
-          notify_with_cooldown wait "🚨🔴 Codeman: input/approval likely needed in \\`$project\\` (mode: \\`$mode\\`)."
+          notify_with_cooldown wait "🚨 ${prefix} 📁 ${project} ⏳ Codeman is waiting for your input/approval (mode: ${mode})."
         fi
       fi
       ;;
@@ -309,7 +398,8 @@ handle_session_line() {
 monitor_session_events() {
   local mode="$1"
   local stop_file="$2"
-  local project="$3"
+  local prefix="$3"
+  local project="$4"
   local current_file=""
   local last_file=""
   local offset=0
@@ -338,7 +428,7 @@ monitor_session_events() {
         new_lines="$(sed -n "$((offset + 1)),$total p" "$current_file")"
         while IFS= read -r line; do
           [ -n "$line" ] || continue
-          handle_session_line "$line" "$mode" "$project"
+          handle_session_line "$line" "$mode" "$prefix" "$project"
         done <<EOF_LINES
 $new_lines
 EOF_LINES
@@ -378,17 +468,57 @@ EOF_CHOICES
   printf '%s\n' "$mode"
 }
 
+run_prefix_command() {
+  local action="${1:-show}"
+  shift || true
+  case "$action" in
+    show)
+      echo "prefix: $(effective_notify_prefix)"
+      ;;
+    set)
+      if [ "$#" -lt 1 ]; then
+        echo "Usage: codeman prefix set <value>" >&2
+        exit 2
+      fi
+      save_notify_prefix "$*"
+      echo "Saved prefix: $*"
+      ;;
+    clear)
+      clear_notify_prefix
+      unset CODEMAN_SAVED_NOTIFY_PREFIX
+      echo "Cleared saved prefix. Effective prefix: $(effective_notify_prefix)"
+      ;;
+    help|-h|--help)
+      cat <<'EOF_PREFIX'
+Usage:
+  codeman prefix
+  codeman prefix show
+  codeman prefix set <value>
+  codeman prefix clear
+EOF_PREFIX
+      ;;
+    *)
+      echo "Unknown prefix action: $action" >&2
+      exit 2
+      ;;
+  esac
+}
+
 run_notify_test() {
-  if [ -z "${CODEMAN_DISCORD_WEBHOOK_URL:-}" ]; then
-    echo "ℹ️ No Discord integration configured. There won't be notifications." >&2
+  local prefix project
+  prefix="$(effective_notify_prefix)"
+  project="$(effective_project_label)"
+
+  if ! has_webhook_config; then
+    echo "ℹ️ No Slack/Discord integration configured. There won't be notifications." >&2
     exit 1
   fi
   if notify_disabled; then
-    echo "🔕 Discord is configured, but notifications are disabled (--no-notify/-N or CODEMAN_NOTIFY_DISABLED=1)."
+    echo "🔕 Webhook is configured, but notifications are disabled (--no-notify/-N or CODEMAN_NOTIFY_DISABLED=1)."
     exit 0
   fi
-  send_discord_message "🤖✅ Codeman notification test from \\`$(hostname)\\`"
-  echo "Discord test notification sent (if webhook is valid)."
+  send_notification_message "🧪 ${prefix} 📁 ${project} ✅ Codeman notification test."
+  echo "Webhook notification test sent (if webhook URL is valid)."
 }
 
 run_upgrade() {
@@ -424,7 +554,7 @@ run_codex() {
   shift
   local mode="${1:-balanced}"
   local stop_file monitor_pid rc
-  local project
+  local project prefix
 
   if [ "$mode" = "full" ] && { [ "${2:-}" = "autonomy" ] || [ "${2:-}" = "auto" ]; }; then
     mode="full-autonomy"
@@ -442,9 +572,10 @@ run_codex() {
   print_notify_status
 
   if notify_enabled; then
-    project="$(basename "$PWD")"
+    prefix="$(effective_notify_prefix)"
+    project="$(effective_project_label)"
     stop_file="$(mktemp /tmp/codeman-notify-stop.XXXXXX)"
-    monitor_session_events "$mode" "$stop_file" "$project" &
+    monitor_session_events "$mode" "$stop_file" "$prefix" "$project" &
     monitor_pid=$!
 
     set +e
@@ -468,6 +599,8 @@ run_codex() {
   fi
   exec codex "$subcommand" "${flags[@]}" "$@"
 }
+
+load_saved_config
 
 PARSED_ARGS=()
 while [ "$#" -gt 0 ]; do
@@ -516,6 +649,10 @@ case "$cmd" in
     ;;
   version|-V|--version)
     print_version
+    ;;
+  prefix)
+    shift
+    run_prefix_command "$@"
     ;;
   notify-test)
     run_notify_test

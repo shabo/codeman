@@ -1,5 +1,7 @@
 # Codeman 🤖💻🔥
 
+![Codeman Logo](assets/logo.png)
+
 Codeman is a thin launcher around `codex` that makes permission level selection explicit and fast.
 
 ## Security Levels (low risk -> high risk) 🚨
@@ -49,6 +51,8 @@ codeman l1
 codeman full autonomy "clean up temp files"
 codeman resume l3 --last
 codeman fork l6 --last
+codeman prefix
+codeman prefix set "MBP-Blue"
 codeman version
 codeman upgrade
 ```
@@ -61,9 +65,9 @@ codeman --no-notify l6
 codeman -N l4
 ```
 
-## Discord Notifications 🔔
+## Slack/Discord Notifications 🔔
 
-If Discord webhook is configured, Codeman can notify when:
+If Slack or Discord webhook is configured, Codeman can notify when:
 
 - input/approval is likely needed (`SandboxDenied`, permission issues)
 - task completes
@@ -71,15 +75,40 @@ If Discord webhook is configured, Codeman can notify when:
 ### Configure
 
 ```bash
+export CODEMAN_SLACK_WEBHOOK_URL='https://hooks.slack.com/services/...'
 export CODEMAN_DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/...'
 ```
 
 Optional controls:
 
 ```bash
+export CODEMAN_NOTIFY_PREFIX='MBP-Blue'
+export CODEMAN_NOTIFY_HOST_CODENAME='MBP-Blue'
+export CODEMAN_NOTIFY_PROJECT_CODENAME='HiveCore'
 export CODEMAN_NOTIFY_ON='wait,complete'
 export CODEMAN_NOTIFY_COOLDOWN_SEC=30
 export CODEMAN_NOTIFY_DISABLED=1
+```
+
+### Prefix command
+
+```bash
+codeman prefix
+codeman prefix set "MBP-Blue"
+codeman prefix clear
+```
+
+Prefix behavior:
+
+- Notification prefix defaults to host name
+- If `codeman prefix set ...` was used, saved prefix is used first
+- If unset, `CODEMAN_NOTIFY_HOST_CODENAME` is used
+- Project label uses `CODEMAN_NOTIFY_PROJECT_CODENAME`, otherwise git repository name
+
+Notification format is:
+
+```text
+🚨 <prefix-or-hostname> 📁 <project-codename-or-repo> ⏳ Codeman is waiting for your input/approval
 ```
 
 Manual test:
@@ -91,13 +120,13 @@ codeman notify-test
 If no webhook is configured, Codeman prints:
 
 ```text
-ℹ️ No Discord integration configured. There won't be notifications.
+ℹ️ No Slack/Discord integration configured. There won't be notifications.
 ```
 
 If webhook is configured but notifications are suppressed (`-N` or `CODEMAN_NOTIFY_DISABLED=1`), Codeman prints:
 
 ```text
-🔕 Discord is configured, but notifications are disabled (--no-notify/-N or CODEMAN_NOTIFY_DISABLED=1).
+🔕 Webhook is configured, but notifications are disabled (--no-notify/-N or CODEMAN_NOTIFY_DISABLED=1).
 ```
 
 ## Upgrade
