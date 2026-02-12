@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+START_MARKER="# >>> codeman managed block >>>"
+END_MARKER="# <<< codeman managed block <<<"
+
+usage() {
+  cat <<'EOF_HELP'
+Install or remove Codeman shell wiring in ~/.zshrc.
+
+USAGE
+  codeman-install [--zshrc PATH] [--bin-dir PATH] [--dry-run]
+  codeman-install --remove [--zshrc PATH] [--dry-run]
+  codeman-install --help
+
+OPTIONS
+  --zshrc PATH   Target rc file (default: ~/.zshrc)
+  --bin-dir PATH PATH entry to prepend (default: script dir)
+  --dry-run      Show changes without writing files
+  --remove       Remove codeman-managed block from rc file
+  --help         Show this message
+EOF_HELP
+}
+
+log() {
+  printf '%s\n' "$*"
+}
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CODEMAN_BIN="$SCRIPT_DIR/codeman"
+ALIASES_FILE="$SCRIPT_DIR/codeman-aliases.zsh"
+
+ZSHRC="$HOME/.zshrc"
+BIN_DIR="$SCRIPT_DIR"
+DRY_RUN=0
+REMOVE=0
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --zshrc)
+      [ "$#" -ge 2 ] || { echo "Missing value for --zshrc" >&2; exit 2; }
+      ZSHRC="$2"
+      shift 2
+      ;;
+    --bin-dir)
+      [ "$#" -ge 2 ] || { echo "Missing value for --bin-dir" >&2; exit 2; }
+      BIN_DIR="$2"
+      shift 2
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    --remove)
+      REMOVE=1
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [ ! -f "$CODEMAN_BIN" ]; then
+  echo "Missing launcher: $CODEMAN_BIN" >&2
+  exit 1
+fi
+if [ ! -f "$ALIASES_FILE" ]; then
+  echo "Missing aliases file: $ALIASES_FILE" >&2
+  exit 1
+fi
+
+chmod +x "$CODEMAN_BIN"
+
+if [ ! -f "$ZSHRC" ]; then
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "[dry-run] Would create $ZSHRC"
+  else
+    touch "$ZSHRC"
+    log "Created $ZSHRC"
+  fi
+fi
+
+tmp_clean="$(mktemp)"
+tmp_next="$(mktemp)"
+cleanup() {
+  rm -f "$tmp_clean" "$tmp_next"
+}
+trap cleanup EXIT
+
+if [ -f "$ZSHRC" ]; then
+  awk -v start="$START_MARKER" -v end="$END_MARKER" '
+    $0 == start {skip=1; next}
+    $0 == end {skip=0; next}
+    !skip {print}
+  ' "$ZSHRC" > "$tmp_clean"
+else
+  : > "$tmp_clean"
+fi
+
+if [ "$REMOVE" -eq 1 ]; then
+  cp "$tmp_clean" "$tmp_next"
+else
+  awk '
+    { lines[NR] = $0 }
+    END {
+      last = NR
+      while (last > 0 && lines[last] ~ /^[[:space:]]*$/) {
+        last--
+      }
+      for (i = 1; i <= last; i++) {
+        print lines[i]
+      }
+    }
+  ' "$tmp_clean" > "$tmp_next"
+
+  if [ -s "$tmp_next" ]; then
+    printf '\n\n' >> "$tmp_next"
+  fi
+
+  cat >> "$tmp_next" <<EOF_BLOCK
+$START_MARKER
+export CODEMAN_HOME="$SCRIPT_DIR"
+export CODEMAN_BIN_DIR="$BIN_DIR"
+if [ -d "\$CODEMAN_BIN_DIR" ]; then
+  case ":\$PATH:" in
+    *":\$CODEMAN_BIN_DIR:"*) ;;
+    *) export PATH="\$CODEMAN_BIN_DIR:\$PATH" ;;
+  esac
+fi
+[ -f "\$CODEMAN_HOME/codeman-aliases.zsh" ] && source "\$CODEMAN_HOME/codeman-aliases.zsh"
+$END_MARKER
+EOF_BLOCK
+fi
+
+if cmp -s "$tmp_next" "$ZSHRC" 2>/dev/null; then
+  if [ "$REMOVE" -eq 1 ]; then
+    log "No codeman block found in $ZSHRC (already clean)."
+  else
+    log "$ZSHRC is already up to date."
+  fi
+  exit 0
+fi
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  log "[dry-run] Changes for $ZSHRC:"
+  if command -v diff >/dev/null 2>&1; then
+    diff -u "$ZSHRC" "$tmp_next" || true
+  else
+    sed -n '/^# >>> codeman managed block >>>$/,/^# <<< codeman managed block <<<$/p' "$tmp_next"
+  fi
+  exit 0
+fi
+
+cp "$tmp_next" "$ZSHRC"
+if [ "$REMOVE" -eq 1 ]; then
+  log "Removed codeman block from $ZSHRC"
+else
+  log "Installed codeman block in $ZSHRC"
+fi
+log "Run: source \"$ZSHRC\""

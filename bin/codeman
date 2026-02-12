@@ -1,0 +1,536 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+resolve_source_path() {
+  local src="$1"
+  while [ -L "$src" ]; do
+    local dir
+    dir="$(cd -- "$(dirname -- "$src")" && pwd)"
+    src="$(readlink "$src")"
+    case "$src" in
+      /*) ;;
+      *) src="$dir/$src" ;;
+    esac
+  done
+  local final_dir
+  final_dir="$(cd -- "$(dirname -- "$src")" && pwd)"
+  printf '%s/%s\n' "$final_dir" "$(basename -- "$src")"
+}
+
+SCRIPT_PATH="$(resolve_source_path "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname -- "$SCRIPT_PATH")"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+VERSION_FILE="$REPO_ROOT/VERSION"
+
+CODEMAN_NOTIFY_LAST_WAIT=0
+CODEMAN_NOTIFY_LAST_COMPLETE=0
+CODEMAN_NOTIFY_SUPPRESS=0
+
+read_version() {
+  if [ -f "$VERSION_FILE" ]; then
+    tr -d '[:space:]' < "$VERSION_FILE"
+  else
+    printf '0.0.0-unknown'
+  fi
+}
+
+print_help() {
+  cat <<'EOF_HELP'
+Codeman 🤖💻🔥 — Run Codex with explicit permission levels
+
+USAGE
+  codeman [--no-notify|-N] [mode] [prompt_or_codex_args...]
+  codeman [--no-notify|-N] menu
+  codeman [--no-notify|-N] resume [mode] [resume_args...]
+  codeman [--no-notify|-N] fork [mode] [fork_args...]
+  codeman version
+  codeman upgrade
+  codeman notify-test
+  codeman help | modes | aliases
+
+LEVELS (most secure -> most risky)
+  safe / l1                  🟢 read-only sandbox + strict approvals
+  cautious / l2              🟢 workspace-write + strict approvals
+  balanced / l3              🟡 workspace-write + on-request approvals (default)
+  autonomous / l4            🟡 workspace-write + on-failure approvals
+  networked / l5             🟠 autonomous + network access
+  full / l6                  🔴 danger-full-access + no approvals
+  reckless / l7              🚨 bypass sandbox + bypass approvals
+  full-autonomy              🚨 alias of reckless (also accepts: "full autonomy")
+
+HIGH-RISK WARNING 🚨
+  l6/l7 can run destructive commands, including deleting files.
+
+INTERACTIVE MODE
+  Running `codeman` with no args opens mode picker.
+  - with fzf: arrow keys + Enter
+  - without fzf: type mode name (l1..l7 or alias)
+
+DISCORD NOTIFICATIONS 🔔
+  Set CODEMAN_DISCORD_WEBHOOK_URL to enable notifications while Codex runs.
+  Triggered on:
+  - wait/approval signals (sandbox denied, permission issues)
+  - task completion
+
+  Optional env:
+  - CODEMAN_NOTIFY_ON=wait,complete
+  - CODEMAN_NOTIFY_COOLDOWN_SEC=30
+  - CODEMAN_NOTIFY_DISABLED=1
+
+  Runtime flags:
+  - --no-notify, -N   Disable notifications even if webhook is configured
+
+EXAMPLES
+  codeman
+  codeman -N l6
+  codeman full autonomy "clean build artifacts"
+  codeman resume l3 --last
+  codeman notify-test
+  codeman version
+  codeman upgrade
+EOF_HELP
+}
+
+print_modes() {
+  cat <<'EOF_MODES'
+l1 safe          🟢  -s read-only -a untrusted
+l2 cautious      🟢  -s workspace-write -a untrusted
+l3 balanced      🟡  -s workspace-write -a on-request
+l4 autonomous    🟡  -s workspace-write -a on-failure
+l5 networked     🟠  l4 + -c sandbox_workspace_write.network_access=true
+l6 full          🔴  -s danger-full-access -a never
+l7 reckless      🚨  --dangerously-bypass-approvals-and-sandbox
+full-autonomy    🚨  alias of l7 ("full autonomy" works too)
+EOF_MODES
+}
+
+print_aliases() {
+  cat <<'EOF_ALIASES'
+# Codeman shortcuts (secure -> risky)
+alias cdx1='codeman l1'
+alias cdx2='codeman l2'
+alias cdx3='codeman l3'
+alias cdx4='codeman l4'
+alias cdx5='codeman l5'
+alias cdx6='codeman l6'
+alias cdx7='codeman l7'
+
+alias cdx-safe='codeman safe'
+alias cdx='codeman balanced'
+alias cdx-auto='codeman autonomous'
+alias cdx-net='codeman networked'
+alias cdx-full='codeman full'
+alias cdx-reckless='codeman reckless'
+
+alias cdx-r='codeman resume balanced --last'
+alias cdx-rfull='codeman resume full --last'
+alias cdx-f='codeman fork balanced --last'
+alias cdx-ffull='codeman fork full --last'
+alias cdx-v='codeman version'
+alias cdx-menu='codeman menu'
+alias cdx-quiet='codeman -N'
+EOF_ALIASES
+}
+
+print_version() {
+  local ver commit
+  ver="$(read_version)"
+  if command -v git >/dev/null 2>&1 && [ -d "$REPO_ROOT/.git" ]; then
+    commit="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
+  else
+    commit=""
+  fi
+
+  if [ -n "$commit" ]; then
+    printf 'codeman v%s (%s) 🤖\n' "$ver" "$commit"
+  else
+    printf 'codeman v%s 🤖\n' "$ver"
+  fi
+  printf 'home: %s\n' "$REPO_ROOT"
+}
+
+is_mode() {
+  case "${1:-}" in
+    safe|cautious|balanced|autonomous|networked|full|reckless|full-autonomy|l1|l2|l3|l4|l5|l6|l7)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+mode_flags() {
+  local mode="${1:-balanced}"
+  case "$mode" in
+    safe|l1)
+      printf '%s\n' -s read-only -a untrusted
+      ;;
+    cautious|l2)
+      printf '%s\n' -s workspace-write -a untrusted
+      ;;
+    balanced|l3)
+      printf '%s\n' -s workspace-write -a on-request
+      ;;
+    autonomous|l4)
+      printf '%s\n' -s workspace-write -a on-failure
+      ;;
+    networked|l5)
+      printf '%s\n' -s workspace-write -a on-failure -c sandbox_workspace_write.network_access=true
+      ;;
+    full|l6)
+      printf '%s\n' -s danger-full-access -a never
+      ;;
+    reckless|full-autonomy|l7)
+      printf '%s\n' --dangerously-bypass-approvals-and-sandbox
+      ;;
+    *)
+      echo "Unknown mode: $mode" >&2
+      exit 2
+      ;;
+  esac
+}
+
+event_enabled() {
+  local event="$1"
+  local configured="${CODEMAN_NOTIFY_ON:-wait,complete}"
+  case ",$configured," in
+    *",$event,"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+notify_disabled() {
+  if [ "$CODEMAN_NOTIFY_SUPPRESS" -eq 1 ]; then
+    return 0
+  fi
+  if [ "${CODEMAN_NOTIFY_DISABLED:-0}" = "1" ]; then
+    return 0
+  fi
+  return 1
+}
+
+notify_enabled() {
+  [ -n "${CODEMAN_DISCORD_WEBHOOK_URL:-}" ] && ! notify_disabled
+}
+
+print_notify_status() {
+  if notify_enabled; then
+    echo "🔔 Discord wired: notifications are ON."
+    return 0
+  fi
+
+  if [ -n "${CODEMAN_DISCORD_WEBHOOK_URL:-}" ]; then
+    if notify_disabled; then
+      echo "🔕 Discord is configured, but notifications are disabled (--no-notify/-N or CODEMAN_NOTIFY_DISABLED=1)."
+    else
+      echo "⚠️ Discord webhook is configured, but notifications are unavailable (check curl/jq dependencies)."
+    fi
+    return 0
+  fi
+
+  echo "ℹ️ No Discord integration configured. There won't be notifications."
+}
+
+send_discord_message() {
+  local message="$1"
+  local webhook="${CODEMAN_DISCORD_WEBHOOK_URL:-}"
+  [ -n "$webhook" ] || return 0
+  command -v curl >/dev/null 2>&1 || return 0
+
+  local payload
+  if command -v jq >/dev/null 2>&1; then
+    payload="$(jq -cn --arg content "$message" '{content:$content}')"
+  else
+    payload="$(printf '{"content":"%s"}' "$(printf '%s' "$message" | sed 's/"/\\"/g')")"
+  fi
+
+  curl -fsS -m 8 -H 'Content-Type: application/json' -d "$payload" "$webhook" >/dev/null 2>&1 || true
+}
+
+notify_with_cooldown() {
+  local kind="$1"
+  local message="$2"
+  local cooldown now last
+
+  cooldown="${CODEMAN_NOTIFY_COOLDOWN_SEC:-30}"
+  now="$(date +%s)"
+
+  if [ "$kind" = "wait" ]; then
+    last="$CODEMAN_NOTIFY_LAST_WAIT"
+    if [ $((now - last)) -lt "$cooldown" ]; then
+      return 0
+    fi
+    CODEMAN_NOTIFY_LAST_WAIT="$now"
+  else
+    last="$CODEMAN_NOTIFY_LAST_COMPLETE"
+    if [ $((now - last)) -lt "$cooldown" ]; then
+      return 0
+    fi
+    CODEMAN_NOTIFY_LAST_COMPLETE="$now"
+  fi
+
+  send_discord_message "$message"
+}
+
+latest_session_file() {
+  ls -1t "$HOME"/.codex/sessions/*/*/*/*.jsonl 2>/dev/null | head -n 1 || true
+}
+
+handle_session_line() {
+  local line="$1"
+  local mode="$2"
+  local project="$3"
+  local line_type evt out
+
+  command -v jq >/dev/null 2>&1 || return 0
+
+  line_type="$(printf '%s\n' "$line" | jq -r '.type // empty' 2>/dev/null || true)"
+
+  case "$line_type" in
+    event_msg)
+      evt="$(printf '%s\n' "$line" | jq -r '.payload.type // empty' 2>/dev/null || true)"
+      if [ "$evt" = "task_complete" ] && event_enabled complete; then
+        notify_with_cooldown complete "✅🚀 Codeman: task complete in \\`$project\\` (mode: \\`$mode\\`)."
+      fi
+      ;;
+    response_item)
+      evt="$(printf '%s\n' "$line" | jq -r '.payload.type // empty' 2>/dev/null || true)"
+      if [ "$evt" = "function_call_output" ] && event_enabled wait; then
+        out="$(printf '%s\n' "$line" | jq -r '.payload.output // ""' 2>/dev/null || true)"
+        if printf '%s' "$out" | grep -Eiq 'SandboxDenied|require_escalated|Operation not permitted|permission denied|ask for approval|request approval'; then
+          notify_with_cooldown wait "🚨🔴 Codeman: input/approval likely needed in \\`$project\\` (mode: \\`$mode\\`)."
+        fi
+      fi
+      ;;
+  esac
+}
+
+monitor_session_events() {
+  local mode="$1"
+  local stop_file="$2"
+  local project="$3"
+  local current_file=""
+  local last_file=""
+  local offset=0
+  local total=0
+  local new_lines line
+  local poll
+
+  poll="${CODEMAN_NOTIFY_POLL_SEC:-2}"
+  current_file="$(latest_session_file)"
+  if [ -n "$current_file" ] && [ -f "$current_file" ]; then
+    last_file="$current_file"
+    offset="$(wc -l < "$current_file" | tr -d ' ')"
+  fi
+
+  while [ ! -f "$stop_file" ]; do
+    current_file="$(latest_session_file)"
+
+    if [ -n "$current_file" ] && [ -f "$current_file" ]; then
+      if [ "$current_file" != "$last_file" ]; then
+        last_file="$current_file"
+        offset=0
+      fi
+
+      total="$(wc -l < "$current_file" | tr -d ' ')"
+      if [ "$total" -gt "$offset" ]; then
+        new_lines="$(sed -n "$((offset + 1)),$total p" "$current_file")"
+        while IFS= read -r line; do
+          [ -n "$line" ] || continue
+          handle_session_line "$line" "$mode" "$project"
+        done <<EOF_LINES
+$new_lines
+EOF_LINES
+        offset="$total"
+      fi
+    fi
+
+    sleep "$poll"
+  done
+}
+
+prompt_mode_menu() {
+  local choice mode
+
+  if command -v fzf >/dev/null 2>&1; then
+    choice="$(cat <<'EOF_CHOICES' | fzf --height=70% --reverse --prompt='Codeman mode > ' --header='Use ↑↓ and Enter (Esc to cancel)'
+l1  safe        🟢 read-only + strict approvals
+l2  cautious    🟢 workspace-write + strict approvals
+l3  balanced    🟡 workspace-write + on-request approvals (default)
+l4  autonomous  🟡 workspace-write + on-failure approvals
+l5  networked   🟠 autonomous + network access
+l6  full        🔴 danger-full-access + no approvals
+l7  reckless    🚨 bypass sandbox + bypass approvals
+EOF_CHOICES
+)" || return 1
+    mode="$(printf '%s' "$choice" | awk '{print $1}')"
+    [ -n "$mode" ] || return 1
+    printf '%s\n' "$mode"
+    return 0
+  fi
+
+  echo "Select Codeman mode (or press Enter for l3/balanced):"
+  print_modes
+  printf '\nMode: '
+  read -r mode || return 1
+  mode="${mode:-l3}"
+  printf '%s\n' "$mode"
+}
+
+run_notify_test() {
+  if [ -z "${CODEMAN_DISCORD_WEBHOOK_URL:-}" ]; then
+    echo "ℹ️ No Discord integration configured. There won't be notifications." >&2
+    exit 1
+  fi
+  if notify_disabled; then
+    echo "🔕 Discord is configured, but notifications are disabled (--no-notify/-N or CODEMAN_NOTIFY_DISABLED=1)."
+    exit 0
+  fi
+  send_discord_message "🤖✅ Codeman notification test from \\`$(hostname)\\`"
+  echo "Discord test notification sent (if webhook is valid)."
+}
+
+run_upgrade() {
+  if ! command -v git >/dev/null 2>&1; then
+    echo "🚨 git is required for codeman upgrade" >&2
+    exit 1
+  fi
+  if [ ! -d "$REPO_ROOT/.git" ]; then
+    echo "🚨 upgrade expects a git checkout at: $REPO_ROOT" >&2
+    exit 1
+  fi
+  if ! git -C "$REPO_ROOT" remote get-url origin >/dev/null 2>&1; then
+    echo "🚨 No origin remote configured. Add it, then rerun: codeman upgrade" >&2
+    exit 1
+  fi
+
+  local branch
+  branch="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+
+  echo "🚀 Upgrading Codeman on branch '$branch' from origin..."
+  git -C "$REPO_ROOT" fetch --prune origin
+  git -C "$REPO_ROOT" pull --ff-only origin "$branch"
+
+  if [ -x "$REPO_ROOT/install.sh" ]; then
+    "$REPO_ROOT/install.sh" --local --bin-dir "${CODEMAN_BIN_DIR:-$HOME/bin}" --zshrc "${CODEMAN_ZSHRC:-$HOME/.zshrc}" >/dev/null
+  fi
+
+  echo "✅ Upgrade complete: codeman v$(read_version)"
+}
+
+run_codex() {
+  local subcommand="$1"
+  shift
+  local mode="${1:-balanced}"
+  local stop_file monitor_pid rc
+  local project
+
+  if [ "$mode" = "full" ] && { [ "${2:-}" = "autonomy" ] || [ "${2:-}" = "auto" ]; }; then
+    mode="full-autonomy"
+    shift 2
+  fi
+
+  if is_mode "$mode"; then
+    shift
+  else
+    mode="balanced"
+  fi
+
+  mapfile -t flags < <(mode_flags "$mode")
+
+  print_notify_status
+
+  if notify_enabled; then
+    project="$(basename "$PWD")"
+    stop_file="$(mktemp /tmp/codeman-notify-stop.XXXXXX)"
+    monitor_session_events "$mode" "$stop_file" "$project" &
+    monitor_pid=$!
+
+    set +e
+    if [ -z "$subcommand" ]; then
+      codex "${flags[@]}" "$@"
+      rc=$?
+    else
+      codex "$subcommand" "${flags[@]}" "$@"
+      rc=$?
+    fi
+    set -e
+
+    : > "$stop_file"
+    wait "$monitor_pid" 2>/dev/null || true
+    rm -f "$stop_file"
+    return "$rc"
+  fi
+
+  if [ -z "$subcommand" ]; then
+    exec codex "${flags[@]}" "$@"
+  fi
+  exec codex "$subcommand" "${flags[@]}" "$@"
+}
+
+PARSED_ARGS=()
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --no-notify|-N)
+      CODEMAN_NOTIFY_SUPPRESS=1
+      shift
+      ;;
+    --)
+      shift
+      while [ "$#" -gt 0 ]; do
+        PARSED_ARGS+=("$1")
+        shift
+      done
+      ;;
+    *)
+      PARSED_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+set -- "${PARSED_ARGS[@]}"
+
+cmd="${1:-}"
+case "$cmd" in
+  "")
+    if [ -t 0 ] && [ -t 1 ]; then
+      selected_mode="$(prompt_mode_menu)" || exit 130
+      run_codex "" "$selected_mode"
+    else
+      run_codex ""
+    fi
+    ;;
+  menu)
+    selected_mode="$(prompt_mode_menu)" || exit 130
+    run_codex "" "$selected_mode"
+    ;;
+  help|-h|--help)
+    print_help
+    ;;
+  modes)
+    print_modes
+    ;;
+  aliases)
+    print_aliases
+    ;;
+  version|-V|--version)
+    print_version
+    ;;
+  notify-test)
+    run_notify_test
+    ;;
+  upgrade)
+    run_upgrade
+    ;;
+  resume|fork)
+    shift
+    run_codex "$cmd" "$@"
+    ;;
+  safe|cautious|balanced|autonomous|networked|full|reckless|full-autonomy|l1|l2|l3|l4|l5|l6|l7)
+    run_codex "" "$@"
+    ;;
+  *)
+    run_codex "" "$@"
+    ;;
+esac

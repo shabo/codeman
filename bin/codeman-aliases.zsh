@@ -1,0 +1,21 @@
+# Codeman shortcuts (secure -> risky)
+alias cdx1='codeman l1'
+alias cdx2='codeman l2'
+alias cdx3='codeman l3'
+alias cdx4='codeman l4'
+alias cdx5='codeman l5'
+alias cdx6='codeman l6'
+alias cdx7='codeman l7'
+
+alias cdx-safe='codeman safe'
+alias cdx='codeman balanced'
+alias cdx-auto='codeman autonomous'
+alias cdx-net='codeman networked'
+alias cdx-full='codeman full'
+alias cdx-reckless='codeman reckless'
+
+alias cdx-r='codeman resume balanced --last'
+alias cdx-rfull='codeman resume full --last'
+alias cdx-f='codeman fork balanced --last'
+alias cdx-ffull='codeman fork full --last'
+alias cdx-v='codeman version'
