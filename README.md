@@ -19,7 +19,7 @@ High-risk levels can execute destructive commands including file deletions.
 ### One-command remote install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<your-user>/Codeman/main/install.sh | bash -s -- --repo https://github.com/<your-user>/Codeman.git
+curl -fsSL https://raw.githubusercontent.com/shabo/codeman/main/install.sh | bash -s -- --repo https://github.com/shabo/codeman.git
 ```
 
 ### Local install from this checkout

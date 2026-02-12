@@ -21,7 +21,7 @@ OPTIONS
   --help             Show this message
 
 ONE-LINER EXAMPLE
-  curl -fsSL https://raw.githubusercontent.com/<your-user>/Codeman/main/install.sh | bash -s -- --repo https://github.com/<your-user>/Codeman.git
+  curl -fsSL https://raw.githubusercontent.com/shabo/codeman/main/install.sh | bash -s -- --repo https://github.com/shabo/codeman.git
 EOF_HELP
 }
 
@@ -29,7 +29,7 @@ log() {
   printf '%s\n' "$*"
 }
 
-DEFAULT_REPO_URL="https://github.com/<your-user>/Codeman.git"
+DEFAULT_REPO_URL="https://github.com/shabo/codeman.git"
 REPO_URL="${CODEMAN_REPO_URL:-$DEFAULT_REPO_URL}"
 REF="${CODEMAN_REF:-main}"
 INSTALL_DIR="${CODEMAN_INSTALL_DIR:-$HOME/.local/share/codeman}"
