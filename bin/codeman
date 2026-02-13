@@ -23,9 +23,11 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 VERSION_FILE="$REPO_ROOT/VERSION"
 CONFIG_DIR="${CODEMAN_CONFIG_DIR:-$HOME/.config/codeman}"
 CONFIG_FILE="$CONFIG_DIR/config.env"
+CODEX_HOME_DIR="${CODEX_HOME:-$HOME/.codex}"
 
 CODEMAN_NOTIFY_LAST_WAIT=0
 CODEMAN_NOTIFY_LAST_COMPLETE=0
+CODEMAN_NOTIFY_LAST_MESSAGE=0
 CODEMAN_NOTIFY_SUPPRESS=0
 CODEMAN_CONFIRM="${CODEMAN_CONFIRM:-1}"
 CODEMAN_SAVED_NOTIFY_PREFIX="${CODEMAN_SAVED_NOTIFY_PREFIX:-}"
@@ -160,7 +162,11 @@ confirm_mode_if_needed() {
   esac
 
   local -a cmd_lines
-  mapfile -t cmd_lines < <(printf '%s\n' "$cmd_str" | fold -s -w 96)
+  cmd_lines=()
+  # Bash 3.2 (macOS default) doesn't have `mapfile`.
+  while IFS= read -r _line; do
+    cmd_lines+=("$_line")
+  done < <(printf '%s\n' "$cmd_str" | fold -s -w 96)
 
   local -a lines
   lines+=("$status_line")
@@ -282,7 +288,7 @@ WEBHOOK NOTIFICATIONS 🔔
   - CODEMAN_NOTIFY_PREFIX="HOST-CODENAME"
   - CODEMAN_NOTIFY_HOST_CODENAME="HOST-CODENAME"
   - CODEMAN_NOTIFY_PROJECT_CODENAME="PROJECT-CODENAME"
-  - CODEMAN_NOTIFY_ON=wait,complete
+  - CODEMAN_NOTIFY_ON=wait,complete[,message]
   - CODEMAN_NOTIFY_COOLDOWN_SEC=30
   - CODEMAN_NOTIFY_DISABLED=1
 
@@ -610,6 +616,13 @@ notify_with_cooldown() {
   local message="$2"
   local cooldown now last
 
+  # Message notifications are opt-in via CODEMAN_NOTIFY_ON and should not be
+  # throttled by default (users usually want one ping per assistant message).
+  if [ "$kind" = "message" ]; then
+    send_notification_message "$message"
+    return 0
+  fi
+
   cooldown="${CODEMAN_NOTIFY_COOLDOWN_SEC:-30}"
   now="$(date +%s)"
 
@@ -632,7 +645,7 @@ notify_with_cooldown() {
 
 latest_session_file() {
   # shellcheck disable=SC2012
-  ls -1t "$HOME"/.codex/sessions/*/*/*/*.jsonl 2>/dev/null | head -n 1 || true
+  ls -1t "$CODEX_HOME_DIR"/sessions/*/*/*/*.jsonl 2>/dev/null | head -n 1 || true
 }
 
 handle_session_line() {
@@ -642,22 +655,65 @@ handle_session_line() {
   local project="$4"
   local line_type evt out
 
-  command -v jq >/dev/null 2>&1 || return 0
-
-  line_type="$(printf '%s\n' "$line" | jq -r '.type // empty' 2>/dev/null || true)"
+  # Prefer jq when available, but fall back to string matching so notifications
+  # still work on systems where jq isn't on PATH.
+  if command -v jq >/dev/null 2>&1; then
+    line_type="$(printf '%s\n' "$line" | jq -r '.type // empty' 2>/dev/null || true)"
+  else
+    case "$line" in
+      *'"type":"event_msg"'*) line_type="event_msg" ;;
+      *'"type":"response_item"'*) line_type="response_item" ;;
+      *) return 0 ;;
+    esac
+  fi
 
   case "$line_type" in
     event_msg)
-      evt="$(printf '%s\n' "$line" | jq -r '.payload.type // empty' 2>/dev/null || true)"
+      if command -v jq >/dev/null 2>&1; then
+        evt="$(printf '%s\n' "$line" | jq -r '.payload.type // empty' 2>/dev/null || true)"
+      else
+        case "$line" in
+          *'"payload":{"type":"task_complete"'*) evt="task_complete" ;;
+          *'"payload":{"type":"agent_message"'*) evt="agent_message" ;;
+          *) evt="" ;;
+        esac
+      fi
       if [ "$evt" = "task_complete" ] && event_enabled complete; then
         notify_with_cooldown complete "✅ ${prefix} 📁 ${project} 🚀 Codeman task complete (mode: ${mode})."
       fi
+      if [ "$evt" = "agent_message" ] && event_enabled message; then
+        local msg
+        if command -v jq >/dev/null 2>&1; then
+          msg="$(printf '%s\n' "$line" | jq -r '.payload.message // empty' 2>/dev/null || true)"
+        else
+          msg=""
+        fi
+
+        # Keep the ping readable: flatten whitespace and clip length.
+        msg="$(printf '%s' "$msg" | tr '\r\n' '  ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
+        if [ -z "$msg" ]; then
+          notify_with_cooldown message "💬 ${prefix} 📁 ${project} New Codex message (mode: ${mode})."
+        else
+          if [ "${#msg}" -gt 200 ]; then
+            msg="${msg:0:200}..."
+          fi
+          notify_with_cooldown message "💬 ${prefix} 📁 ${project} ${msg}"
+        fi
+      fi
       ;;
     response_item)
-      evt="$(printf '%s\n' "$line" | jq -r '.payload.type // empty' 2>/dev/null || true)"
-      if [ "$evt" = "function_call_output" ] && event_enabled wait; then
-        out="$(printf '%s\n' "$line" | jq -r '.payload.output // ""' 2>/dev/null || true)"
-        if printf '%s' "$out" | grep -Eiq 'SandboxDenied|require_escalated|Operation not permitted|permission denied|ask for approval|request approval'; then
+      if command -v jq >/dev/null 2>&1; then
+        evt="$(printf '%s\n' "$line" | jq -r '.payload.type // empty' 2>/dev/null || true)"
+        if [ "$evt" = "function_call_output" ] && event_enabled wait; then
+          out="$(printf '%s\n' "$line" | jq -r '.payload.output // \"\"' 2>/dev/null || true)"
+          if printf '%s' "$out" | grep -Eiq 'SandboxDenied|require_escalated|Operation not permitted|permission denied|ask for approval|request approval'; then
+            notify_with_cooldown wait "🚨 ${prefix} 📁 ${project} ⏳ Codeman is waiting for your input/approval (mode: ${mode})."
+          fi
+        fi
+      else
+        # Without jq, just look for the denial markers anywhere in the line.
+        # This keeps "wait" notifications working even in minimal PATH envs.
+        if event_enabled wait && printf '%s' "$line" | grep -Eiq 'SandboxDenied|require_escalated|Operation not permitted|permission denied|ask for approval|request approval'; then
           notify_with_cooldown wait "🚨 ${prefix} 📁 ${project} ⏳ Codeman is waiting for your input/approval (mode: ${mode})."
         fi
       fi
@@ -812,7 +868,12 @@ run_codex() {
     mode="balanced"
   fi
 
-  mapfile -t flags < <(mode_flags "$mode")
+  # Bash 3.2 (macOS default) doesn't have `mapfile`.
+  flags=()
+  while IFS= read -r _flag; do
+    [ -n "$_flag" ] || continue
+    flags+=("$_flag")
+  done < <(mode_flags "$mode")
 
   local notify_text
   notify_text="$(print_notify_status)"
@@ -895,7 +956,13 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
-set -- "${PARSED_ARGS[@]}"
+# Bash 3.2 + `set -u` treats expanding an empty array as "unbound variable".
+# Only expand when non-empty to support running `codeman` with no args.
+if [ "${#PARSED_ARGS[@]}" -gt 0 ]; then
+  set -- "${PARSED_ARGS[@]}"
+else
+  set --
+fi
 
 cmd_word="${1:-}"
 case "$cmd_word" in
