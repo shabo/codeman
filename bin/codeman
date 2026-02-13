@@ -27,6 +27,7 @@ CONFIG_FILE="$CONFIG_DIR/config.env"
 CODEMAN_NOTIFY_LAST_WAIT=0
 CODEMAN_NOTIFY_LAST_COMPLETE=0
 CODEMAN_NOTIFY_SUPPRESS=0
+CODEMAN_CONFIRM="${CODEMAN_CONFIRM:-1}"
 CODEMAN_SAVED_NOTIFY_PREFIX="${CODEMAN_SAVED_NOTIFY_PREFIX:-}"
 
 read_version() {
@@ -34,6 +35,152 @@ read_version() {
     tr -d '[:space:]' < "$VERSION_FILE"
   else
     printf '0.0.0-unknown'
+  fi
+}
+
+repeat_char() {
+  local ch="$1"
+  local n="$2"
+  local out=""
+  local i
+  for ((i = 0; i < n; i++)); do
+    out+="$ch"
+  done
+  printf '%s' "$out"
+}
+
+color_enabled() {
+  # Only emit ANSI when we control a TTY; also honor NO_COLOR and CODEMAN_COLOR=0.
+  [ -t 2 ] || return 1
+  [ "${TERM:-}" != "dumb" ] || return 1
+  [ -z "${NO_COLOR:-}" ] || return 1
+  [ "${CODEMAN_COLOR:-1}" != "0" ] || return 1
+  return 0
+}
+
+ansi_color_for_severity() {
+  local severity="$1"
+  case "$severity" in
+    info) printf '\033[32m' ;;     # green
+    warning) printf '\033[33m' ;;  # yellow
+    critical) printf '\033[31m' ;; # red
+    *) printf '\033[0m' ;;
+  esac
+}
+
+ansi_reset() {
+  printf '\033[0m'
+}
+
+print_panel() {
+  # Avoid wide emoji inside the panel (they can break border alignment in some terminals).
+  local severity="$1"
+  local header="$2"
+  shift 2
+
+  local tl tr bl br v h sl sr
+  case "$severity" in
+    info)
+      tl="╭"; tr="╮"; bl="╰"; br="╯"; v="│"; h="─"; sl="├"; sr="┤"
+      ;;
+    warning)
+      tl="┏"; tr="┓"; bl="┗"; br="┛"; v="┃"; h="━"; sl="┣"; sr="┫"
+      ;;
+    critical)
+      tl="╔"; tr="╗"; bl="╚"; br="╝"; v="║"; h="═"; sl="╠"; sr="╣"
+      ;;
+    *)
+      tl="╭"; tr="╮"; bl="╰"; br="╯"; v="│"; h="─"; sl="├"; sr="┤"
+      ;;
+  esac
+
+  local max="${#header}"
+  local line
+  for line in "$@"; do
+    [ "${#line}" -gt "$max" ] && max="${#line}"
+  done
+
+  local bar
+  bar="$(repeat_char "$h" $((max + 2)))"
+
+  printf '%s%s%s\n' "$tl" "$bar" "$tr"
+  printf '%s %s%s %s\n' "$v" "$header" "$(repeat_char " " $((max - ${#header})))" "$v"
+  printf '%s%s%s\n' "$sl" "$bar" "$sr"
+  for line in "$@"; do
+    if color_enabled && [[ "$line" == [✔⚠✖]\ * ]]; then
+      local icon rest pad
+      icon="${line%% *}"
+      rest="${line#* }"
+      pad="$(repeat_char " " $((max - ${#line})))"
+      printf '%s %s%s%s %s%s %s\n' \
+        "$v" \
+        "$(ansi_color_for_severity "$severity")" "$icon" "$(ansi_reset)" \
+        "$rest" "$pad" \
+        "$v"
+    else
+      printf '%s %s%s %s\n' "$v" "$line" "$(repeat_char " " $((max - ${#line})))" "$v"
+    fi
+  done
+  printf '%s%s%s\n' "$bl" "$bar" "$br"
+}
+
+mode_one_liner() {
+  local mode="$1"
+  case "$mode" in
+    safe|l1) echo "read-only sandbox + strict approvals" ;;
+    cautious|l2) echo "workspace-write + strict approvals" ;;
+    balanced|l3) echo "workspace-write + on-request approvals" ;;
+    autonomous|l4) echo "workspace-write + on-failure approvals" ;;
+    networked|l5) echo "workspace-write + on-failure approvals + network access" ;;
+    full|l6) echo "danger-full-access + never ask for approval" ;;
+    reckless|full-autonomy|l7) echo "bypass sandbox + bypass approvals (EXTREMELY DANGEROUS)" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
+confirm_mode_if_needed() {
+  local mode="$1"
+  local subcommand="$2"
+  local cmd_str="$3"
+  local notify_text="${4:-}"
+
+  [ "$CODEMAN_CONFIRM" = "1" ] || return 0
+  [ -t 0 ] && [ -t 1 ] || return 0
+
+  local severity="info"
+  case "$mode" in
+    networked|l5|full|l6) severity="warning" ;;
+    reckless|full-autonomy|l7) severity="critical" ;;
+  esac
+
+  local status_line="✔ Mode selected"
+  case "$severity" in
+    warning) status_line="⚠ WARNING: high-risk mode selected" ;;
+    critical) status_line="✖ DANGER: bypassing sandbox and approvals" ;;
+  esac
+
+  local -a cmd_lines
+  mapfile -t cmd_lines < <(printf '%s\n' "$cmd_str" | fold -s -w 96)
+
+  local -a lines
+  lines+=("$status_line")
+  lines+=("Mode: $mode")
+  lines+=("About: $(mode_one_liner "$mode")")
+  if [ "${#cmd_lines[@]}" -gt 0 ]; then
+    lines+=("Codex: ${cmd_lines[0]}")
+    local i
+    for ((i = 1; i < ${#cmd_lines[@]}; i++)); do
+      lines+=("      ${cmd_lines[$i]}")
+    done
+  fi
+  [ -n "$notify_text" ] && lines+=("$notify_text")
+
+  print_panel "$severity" "Codeman mode confirmation" "${lines[@]}" >&2
+  printf '%s' "Press Enter to continue (Ctrl-C to abort): " >&2
+  if [ -r /dev/tty ]; then
+    IFS= read -r _ </dev/tty || exit 130
+  else
+    IFS= read -r _ || exit 130
   fi
 }
 
@@ -101,10 +248,9 @@ print_help() {
 Codeman 🤖💻🔥 — Run Codex with explicit permission levels
 
 USAGE
-  codeman [--no-notify|-N] [mode] [prompt_or_codex_args...]
-  codeman [--no-notify|-N] menu
-  codeman [--no-notify|-N] resume [mode] [resume_args...]
-  codeman [--no-notify|-N] fork [mode] [fork_args...]
+  codeman [--no-notify|-N] [--no-confirm|-y] [mode] [prompt_or_codex_args...]
+  codeman [--no-notify|-N] [--no-confirm|-y] resume [mode] [resume_args...]
+  codeman [--no-notify|-N] [--no-confirm|-y] fork [mode] [fork_args...]
   codeman version
   codeman upgrade
   codeman prefix [show|set <value>|clear]
@@ -124,11 +270,6 @@ LEVELS (most secure -> most risky)
 HIGH-RISK WARNING 🚨
   l6/l7 can run destructive commands, including deleting files.
 
-INTERACTIVE MODE
-  Running `codeman` with no args opens mode picker.
-  - with fzf: arrow keys + Enter
-  - without fzf: type mode name (l1..l7 or alias)
-
 WEBHOOK NOTIFICATIONS 🔔
   Set CODEMAN_SLACK_WEBHOOK_URL and/or CODEMAN_DISCORD_WEBHOOK_URL.
   Triggered on:
@@ -145,6 +286,7 @@ WEBHOOK NOTIFICATIONS 🔔
 
   Runtime flags:
   - --no-notify, -N   Disable notifications even if webhook is configured
+  - --no-confirm, -y  Skip the "press Enter to continue" confirmation
 
 EXAMPLES
   codeman
@@ -152,6 +294,7 @@ EXAMPLES
   codeman prefix set "MBP-Blue"
   codeman full autonomy "clean build artifacts"
   codeman resume l3 --last
+  codeman resume l3 <session-uuid>
   codeman notify-test
   codeman version
   codeman upgrade
@@ -169,6 +312,25 @@ l6 full          🔴  -s danger-full-access -a never
 l7 reckless      🚨  --dangerously-bypass-approvals-and-sandbox
 full-autonomy    🚨  alias of l7 ("full autonomy" works too)
 EOF_MODES
+}
+
+print_mode_pick_hint() {
+  local notify_text
+  notify_text="$(print_notify_status)"
+
+  cat <<'EOF_PICK'
+Pick a mode explicitly.
+Available modes:
+EOF_PICK
+  print_modes
+  cat <<'EOF_PICK_EXAMPLES'
+
+Examples:
+  codeman l3
+  codeman l6 "clean build artifacts"
+  codeman resume l3 --last
+EOF_PICK_EXAMPLES
+  printf '\n%s\n' "$notify_text"
 }
 
 print_aliases() {
@@ -194,7 +356,6 @@ alias cdx-rfull='codeman resume full --last'
 alias cdx-f='codeman fork balanced --last'
 alias cdx-ffull='codeman fork full --last'
 alias cdx-v='codeman version'
-alias cdx-menu='codeman menu'
 alias cdx-quiet='codeman -N'
 alias cdx-prefix='codeman prefix'
 EOF_ALIASES
@@ -440,34 +601,6 @@ EOF_LINES
   done
 }
 
-prompt_mode_menu() {
-  local choice mode
-
-  if command -v fzf >/dev/null 2>&1; then
-    choice="$(cat <<'EOF_CHOICES' | fzf --height=70% --reverse --prompt='Codeman mode > ' --header='Use ↑↓ and Enter (Esc to cancel)'
-l1  safe        🟢 read-only + strict approvals
-l2  cautious    🟢 workspace-write + strict approvals
-l3  balanced    🟡 workspace-write + on-request approvals (default)
-l4  autonomous  🟡 workspace-write + on-failure approvals
-l5  networked   🟠 autonomous + network access
-l6  full        🔴 danger-full-access + no approvals
-l7  reckless    🚨 bypass sandbox + bypass approvals
-EOF_CHOICES
-)" || return 1
-    mode="$(printf '%s' "$choice" | awk '{print $1}')"
-    [ -n "$mode" ] || return 1
-    printf '%s\n' "$mode"
-    return 0
-  fi
-
-  echo "Select Codeman mode (or press Enter for l3/balanced):"
-  print_modes
-  printf '\nMode: '
-  read -r mode || return 1
-  mode="${mode:-l3}"
-  printf '%s\n' "$mode"
-}
-
 run_prefix_command() {
   local action="${1:-show}"
   shift || true
@@ -553,15 +686,18 @@ run_codex() {
   local subcommand="$1"
   shift
   local mode="${1:-balanced}"
+  local explicit_mode=0
   local stop_file monitor_pid rc
   local project prefix
 
   if [ "$mode" = "full" ] && { [ "${2:-}" = "autonomy" ] || [ "${2:-}" = "auto" ]; }; then
     mode="full-autonomy"
+    explicit_mode=1
     shift 2
   fi
 
   if is_mode "$mode"; then
+    explicit_mode=1
     shift
   else
     mode="balanced"
@@ -569,7 +705,31 @@ run_codex() {
 
   mapfile -t flags < <(mode_flags "$mode")
 
-  print_notify_status
+  local notify_text
+  notify_text="$(print_notify_status)"
+
+  local will_confirm=0
+  if [ "$explicit_mode" -eq 1 ] && [ -z "$subcommand" ] && [ "$CODEMAN_CONFIRM" = "1" ] && [ -t 0 ] && [ -t 1 ]; then
+    will_confirm=1
+  fi
+
+  if [ "$explicit_mode" -eq 1 ] && [ -z "$subcommand" ]; then
+    local cmd_str
+    local -a cmd
+    cmd=(codex)
+    [ -n "$subcommand" ] && cmd+=("$subcommand")
+    cmd+=("${flags[@]}")
+    cmd+=("$@")
+    cmd_str="$(printf '%q ' "${cmd[@]}")"
+    cmd_str="${cmd_str% }"
+    if [ "$will_confirm" -eq 1 ]; then
+      confirm_mode_if_needed "$mode" "$subcommand" "$cmd_str" "$notify_text"
+    fi
+  fi
+
+  if [ "$will_confirm" -eq 0 ]; then
+    printf '%s\n' "$notify_text"
+  fi
 
   if notify_enabled; then
     prefix="$(effective_notify_prefix)"
@@ -609,6 +769,10 @@ while [ "$#" -gt 0 ]; do
       CODEMAN_NOTIFY_SUPPRESS=1
       shift
       ;;
+    --no-confirm|-y)
+      CODEMAN_CONFIRM=0
+      shift
+      ;;
     --)
       shift
       while [ "$#" -gt 0 ]; do
@@ -627,16 +791,12 @@ set -- "${PARSED_ARGS[@]}"
 cmd="${1:-}"
 case "$cmd" in
   "")
-    if [ -t 0 ] && [ -t 1 ]; then
-      selected_mode="$(prompt_mode_menu)" || exit 130
-      run_codex "" "$selected_mode"
-    else
-      run_codex ""
-    fi
+    print_mode_pick_hint
+    exit 2
     ;;
   menu)
-    selected_mode="$(prompt_mode_menu)" || exit 130
-    run_codex "" "$selected_mode"
+    print_mode_pick_hint
+    exit 2
     ;;
   help|-h|--help)
     print_help

@@ -1,6 +1,6 @@
 # Codeman 🤖💻🔥
 
-![Codeman Logo](assets/logo.png)
+<img src="assets/logo.png" alt="Codeman Logo" width="50%" />
 
 Codeman is a thin launcher around `codex` that makes permission level selection explicit and fast.
 
@@ -33,14 +33,13 @@ source ~/.zshrc
 
 ## Usage
 
-### Interactive mode picker (no args)
+### Default mode (no args)
 
 ```bash
 codeman
 ```
 
-- With `fzf`: pick mode using arrow keys + Enter
-- Without `fzf`: type mode name (`l1`..`l7`, `safe`, `full-autonomy`, etc.)
+- Prints the mode list and asks you to choose explicitly
 
 ### Common commands
 
@@ -50,7 +49,9 @@ codeman modes
 codeman l1
 codeman full autonomy "clean up temp files"
 codeman resume l3 --last
+codeman resume l3 019c5410-c382-7551-a290-6cd52a31c9dc
 codeman fork l6 --last
+codeman -y l3 "skip the press-Enter confirmation"
 codeman prefix
 codeman prefix set "MBP-Blue"
 codeman version
@@ -71,6 +72,51 @@ If Slack or Discord webhook is configured, Codeman can notify when:
 
 - input/approval is likely needed (`SandboxDenied`, permission issues)
 - task completes
+
+### Step-by-step setup
+
+1. Create a webhook URL
+   - Slack: create an Incoming Webhook and copy the webhook URL
+   - Discord: create a Webhook for a channel and copy the webhook URL
+2. Add the webhook URL to your shell environment
+   - Slack:
+     ```bash
+     export CODEMAN_SLACK_WEBHOOK_URL='https://hooks.slack.com/services/...'
+     ```
+   - Discord:
+     ```bash
+     export CODEMAN_DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/...'
+     ```
+3. Persist it so it works in every terminal
+   - Add the `export ...` line(s) to `~/.zshrc` (or `~/.bashrc`)
+   - Then reload your shell:
+     ```bash
+     source ~/.zshrc
+     ```
+4. Verify it works
+   ```bash
+   codeman notify-test
+   ```
+   - If you see `ℹ️ No Slack/Discord integration configured...`, your env var is not set in this shell.
+   - If you see `🔕 Webhook is configured, but notifications are disabled...`, remove `-N` or unset `CODEMAN_NOTIFY_DISABLED`.
+5. Choose when notifications should fire (optional)
+   ```bash
+   export CODEMAN_NOTIFY_ON='wait,complete'
+   ```
+6. Customize the label (optional)
+   ```bash
+   export CODEMAN_NOTIFY_PREFIX='MBP-Blue'
+   export CODEMAN_NOTIFY_PROJECT_CODENAME='HiveCore'
+   ```
+7. Disable notifications
+   - One run:
+     ```bash
+     codeman -N l3
+     ```
+   - Globally:
+     ```bash
+     export CODEMAN_NOTIFY_DISABLED=1
+     ```
 
 ### Configure
 
