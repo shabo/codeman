@@ -172,7 +172,7 @@
     });
   });
 
-  // Money bag drop: lands on GitHub Sponsors, poofs; then lands on Patreon, poofs.
+  // Money bag drop: lands on GitHub Sponsors, fades; then lands on Patreon, fades.
   (function () {
     var mq = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
     function reducedMotion() { return !!(mq && mq.matches); }
@@ -206,12 +206,40 @@
       }
     }
 
+    function measureBag() {
+      // Emoji glyphs can render taller than font-size; measure actual box.
+      ensureEls();
+      var prevDisplay = bag.style.display;
+      var prevLeft = bag.style.left;
+      var prevTop = bag.style.top;
+      var prevVis = bag.style.visibility;
+      var prevOpacity = bag.style.opacity;
+
+      bag.style.visibility = "hidden";
+      bag.style.opacity = "0";
+      bag.style.display = "block";
+      bag.style.left = "-9999px";
+      bag.style.top = "-9999px";
+
+      var r = bag.getBoundingClientRect();
+
+      bag.style.display = prevDisplay;
+      bag.style.left = prevLeft;
+      bag.style.top = prevTop;
+      bag.style.visibility = prevVis;
+      bag.style.opacity = prevOpacity;
+
+      // Fallback to 30 if measurement fails.
+      return { w: r.width || 30, h: r.height || 30 };
+    }
+
     function animateDropTo(targetEl) {
       ensureEls();
       var p = topCenter(targetEl);
       // Land on the *top edge* of the pill, not the center.
-      var bagSize = parseFloat(getComputedStyle(bag).fontSize) || 30;
-      var landY = p.y - (bagSize / 2) - 2;
+      var m = measureBag();
+      // Slight overlap (1px) so it reads as "landing on" the pill.
+      var landY = p.y + 1 - (m.h / 2);
       var start = { x: p.x + ((Math.random() * 40) - 20), y: -40 };
       var end = { x: p.x, y: landY };
       var dx = start.x - end.x;
@@ -243,7 +271,7 @@
       if (!bag) return Promise.resolve();
       var a = bag.animate([
         { opacity: 1, transform: "translate(-50%, -50%) scale(1)" },
-        { opacity: 0, transform: "translate(-50%, calc(-50% - 10px)) scale(0.98)" }
+        { opacity: 0, transform: "translate(-50%, -50%) translateY(-10px) scale(0.98)" }
       ], { duration: 1400, easing: "ease-out", fill: "forwards" });
       return new Promise(function (resolve) {
         a.onfinish = function () {
