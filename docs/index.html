@@ -38,12 +38,12 @@
 
     <main id="content">
       <section class="hero" id="top">
-        <div class="floatmark" aria-hidden="true">
-          <div class="floatmark__glow"></div>
-          <img class="floatmark__logo" src="site/logo.png" alt="" width="144" height="144" />
-        </div>
+        <div class="hero__head">
+          <div class="floatmark" aria-hidden="true">
+            <div class="floatmark__glow"></div>
+            <img class="floatmark__logo" src="site/logo.png" alt="" width="144" height="144" />
+          </div>
 
-        <div class="hero__grid">
           <div class="hero__copy">
             <div class="pill">
               <span class="pill__dot" aria-hidden="true"></span>
@@ -79,46 +79,30 @@
               </div>
             </div>
           </div>
+        </div>
 
-          <div class="hero__panel" aria-label="Terminal preview">
-            <div class="term term--shot" aria-label="Screenshot: codeman l3 confirmation">
-              <div class="term__bar">
-                <div class="term__dots" aria-hidden="true">
-                  <span></span><span></span><span></span>
-                </div>
-                <div class="term__title">codeman l3</div>
-              </div>
-              <a
-                class="term__shot"
-                href="site/screenshots/confirm.svg"
-                data-lightbox="confirm"
-                aria-label="Open screenshot: Confirmation panel"
-              >
-                <img class="term__img" src="site/screenshots/confirm.svg" alt="Codeman confirmation panel for an explicit mode selection." />
+        <div class="hero__shots" id="shots" aria-label="Screenshots">
+          <div class="shots shots--hero">
+            <figure class="shot">
+              <a class="shot__link" href="site/screenshots/confirm.svg" data-lightbox="confirm" aria-label="Open screenshot: Confirmation panel">
+                <img src="site/screenshots/confirm.svg" alt="Codeman confirmation panel for an explicit mode selection." />
               </a>
-            </div>
-
-            <div class="minishots" aria-label="More screenshots">
-              <a
-                class="minishot"
-                href="site/screenshots/modes.svg"
-                data-lightbox="modes"
-                aria-label="Open screenshot: Mode list"
-              >
+              <figcaption>Confirmation panel: selected mode, meaning, full Codex command, then Enter.</figcaption>
+            </figure>
+            <figure class="shot">
+              <a class="shot__link" href="site/screenshots/modes.svg" data-lightbox="modes" aria-label="Open screenshot: Mode list">
                 <img src="site/screenshots/modes.svg" alt="Codeman printing the list of modes and notify status." />
               </a>
-              <a
-                class="minishot"
-                href="site/screenshots/notify.svg"
-                data-lightbox="notify"
-                aria-label="Open screenshot: Notification test"
-              >
+              <figcaption>Mode list (no args): explicit choice + notify status.</figcaption>
+            </figure>
+            <figure class="shot">
+              <a class="shot__link" href="site/screenshots/notify.svg" data-lightbox="notify" aria-label="Open screenshot: Notification test">
                 <img src="site/screenshots/notify.svg" alt="Codeman notification test output." />
               </a>
-            </div>
-
-            <p class="hero__note">Click any screenshot to zoom. Use <code>-y</code> to skip confirmations.</p>
+              <figcaption>Notification test: clear failure modes and what to fix.</figcaption>
+            </figure>
           </div>
+          <p class="hero__note">Click any screenshot to zoom. Use <code>-y</code> to skip confirmations.</p>
         </div>
       </section>
 
@@ -354,49 +338,6 @@ codeman bump patch --commit --tag</code></pre>
           <p class="muted">
             The GitHub Action will create a release for <code>vX.Y.Z</code> only if that tag does not already exist.
           </p>
-        </div>
-      </section>
-
-      <section class="section" id="shots">
-        <div class="section__head">
-          <h2>Screenshots</h2>
-          <p>Realistic terminal captures of Codeman in action. Static and deterministic.</p>
-        </div>
-
-        <div class="shots">
-          <figure class="shot">
-            <a
-              class="shot__link"
-              href="site/screenshots/modes.svg"
-              data-lightbox="modes"
-              aria-label="Open screenshot: Mode list"
-            >
-              <img src="site/screenshots/modes.svg" alt="Codeman printing the list of modes and notify status." />
-            </a>
-            <figcaption>Mode list (no args): explicit choice + notify status.</figcaption>
-          </figure>
-          <figure class="shot">
-            <a
-              class="shot__link"
-              href="site/screenshots/confirm.svg"
-              data-lightbox="confirm"
-              aria-label="Open screenshot: Confirmation panel"
-            >
-              <img src="site/screenshots/confirm.svg" alt="Codeman confirmation panel for an explicit mode selection." />
-            </a>
-            <figcaption>Confirmation panel: selected mode, meaning, full Codex command, then Enter.</figcaption>
-          </figure>
-          <figure class="shot">
-            <a
-              class="shot__link"
-              href="site/screenshots/notify.svg"
-              data-lightbox="notify"
-              aria-label="Open screenshot: Notification test"
-            >
-              <img src="site/screenshots/notify.svg" alt="Codeman notification test output." />
-            </a>
-            <figcaption>Notification test: clear failure modes and what to fix.</figcaption>
-          </figure>
         </div>
       </section>
 
