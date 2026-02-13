@@ -7,8 +7,8 @@
     <title>Codeman</title>
     <meta name="description" content="Codeman is a thin launcher around codex that makes permission level selection explicit and fast." />
 
-    <link rel="preload" href="site/fonts/Agave-Regular.ttf" as="font" type="font/ttf" crossorigin />
-    <link rel="preload" href="site/fonts/Agave-Bold.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="site/fonts/ZedMonoNerdFont-Regular.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="site/fonts/ZedMonoNerdFont-Bold.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="stylesheet" href="site/styles.css" />
   </head>
   <body>
@@ -17,7 +17,6 @@
     <header class="top">
       <div class="top__inner">
         <a class="brand" href="#top" aria-label="Codeman home">
-          <img class="brand__logo" src="site/logo.png" alt="" width="28" height="28" />
           <span class="brand__name">Codeman</span>
           <span class="brand__tag">elderberry.games</span>
         </a>
@@ -40,6 +39,11 @@
 
     <main id="content">
       <section class="hero" id="top">
+        <div class="floatmark" aria-hidden="true">
+          <div class="floatmark__glow"></div>
+          <img class="floatmark__logo" src="site/logo.png" alt="" width="72" height="72" />
+        </div>
+
         <div class="hero__grid">
           <div class="hero__copy">
             <div class="pill">
@@ -370,7 +374,8 @@ codeman bump patch --commit --tag</code></pre>
             <div class="muted">Hosted at <code>codeman.elderberry.games</code>.</div>
           </div>
           <div class="footer__right muted">
-            Font: Agave (see <a href="site/fonts/Agave-LICENSE">license</a>) · Source: <a href="https://github.com/shabo/codeman">GitHub</a>
+            Font: ZedMono Nerd Font (see <a href="site/fonts/ZedMonoNerdFont-LICENSE.md">license</a>) · Source:
+            <a href="https://github.com/shabo/codeman">GitHub</a>
           </div>
         </div>
       </section>
@@ -379,4 +384,3 @@ codeman bump patch --commit --tag</code></pre>
     <script src="site/app.js"></script>
   </body>
 </html>
-

@@ -1,13 +1,13 @@
 @font-face {
-  font-family: "Agave";
-  src: url("fonts/Agave-Regular.ttf") format("truetype");
+  font-family: "ZedMono Nerd Font";
+  src: url("fonts/ZedMonoNerdFont-Regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "Agave";
-  src: url("fonts/Agave-Bold.ttf") format("truetype");
+  font-family: "ZedMono Nerd Font";
+  src: url("fonts/ZedMonoNerdFont-Bold.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -30,7 +30,7 @@
   --shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
   --radius: 16px;
   --radius2: 12px;
-  --mono: "Agave", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --mono: "ZedMono Nerd Font", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 * { box-sizing: border-box; }
@@ -86,12 +86,6 @@ code { font-family: var(--mono); }
   gap: 10px;
   min-width: 240px;
 }
-.brand__logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
-}
 .brand__name { font-weight: 700; letter-spacing: -0.02em; }
 .brand__tag {
   font-size: 12px;
@@ -140,6 +134,48 @@ code { font-family: var(--mono); }
 main { display: block; }
 .hero {
   padding: 56px 16px 18px;
+}
+.floatmark {
+  max-width: 1100px;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  pointer-events: none;
+}
+.floatmark__logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.25);
+  transform: translateY(-4px);
+  animation: floatmark-float 7.5s ease-in-out infinite;
+}
+.floatmark__glow {
+  position: absolute;
+  width: 240px;
+  height: 140px;
+  border-radius: 999px;
+  background: radial-gradient(closest-side, rgba(123, 223, 242, 0.22), rgba(142, 242, 154, 0.10), transparent 70%);
+  filter: blur(14px);
+  opacity: 0.9;
+  transform: translateY(20px);
+  animation: floatmark-glow 5.6s ease-in-out infinite;
+}
+
+@keyframes floatmark-float {
+  0%, 100% { transform: translateY(-4px); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes floatmark-glow {
+  0%, 100% { opacity: 0.78; transform: translateY(20px) translateX(-6px) scale(0.98); }
+  50% { opacity: 1; transform: translateY(18px) translateX(8px) scale(1.04); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floatmark__logo, .floatmark__glow { animation: none; }
 }
 .hero__grid {
   max-width: 1100px;
@@ -367,4 +403,3 @@ main { display: block; }
   .footer { flex-direction: column; align-items: stretch; }
   .footer__right { text-align: left; }
 }
-
