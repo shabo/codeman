@@ -233,6 +233,7 @@ main { display: block; }
   gap: 12px;
   justify-self: end;
 }
+.hero__mark .floatmark { align-self: flex-end; }
 .hero__support {
   display: flex;
   gap: 10px;
@@ -607,6 +608,7 @@ main { display: block; }
 @media (max-width: 980px) {
   .hero__head { grid-template-columns: 1fr; }
   .hero__mark { align-items: center; }
+  .hero__mark .floatmark { align-self: center; }
   .floatmark { justify-self: center; }
   .nav { display: none; }
 }
