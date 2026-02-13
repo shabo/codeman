@@ -8,13 +8,15 @@ Codeman is a thin launcher around `codex` that makes permission level selection 
 
 ## Security Levels (low risk -> high risk) 🚨
 
-- `l1` / `safe` 🟢: read-only sandbox + strict approvals
-- `l2` / `cautious` 🟢: workspace-write + strict approvals
-- `l3` / `balanced` 🟡: workspace-write + on-request approvals
-- `l4` / `autonomous` 🟡: workspace-write + on-failure approvals
-- `l5` / `networked` 🟠: l4 + network access
-- `l6` / `full` 🔴: danger-full-access + no approvals
-- `l7` / `reckless` 🚨: bypass sandbox + bypass approvals
+| Level | Name | Risk | Description |
+| --- | --- | --- | --- |
+| `l1` | `safe` | 🟢 | read-only sandbox + strict approvals |
+| `l2` | `cautious` | 🟢 | workspace-write + strict approvals |
+| `l3` | `balanced` | 🟡 | workspace-write + on-request approvals |
+| `l4` | `autonomous` | 🟡 | workspace-write + on-failure approvals |
+| `l5` | `networked` | 🟠 | `l4` + network access |
+| `l6` | `full` | 🔴 | danger-full-access + no approvals |
+| `l7` | `reckless` | 🚨 | bypass sandbox + bypass approvals |
 
 High-risk levels can execute destructive commands including file deletions.
 
