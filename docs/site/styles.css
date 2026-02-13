@@ -232,6 +232,12 @@ main { display: block; }
   gap: 12px;
   justify-self: end;
 }
+.hero__support {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
 .hero__shots {
   max-width: 1100px;
   margin: 18px auto 0;
@@ -288,6 +294,29 @@ main { display: block; }
   align-items: baseline;
   gap: 10px;
 }
+.kpi--cta {
+  color: var(--fg);
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+.kpi--cta:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+.kpi--cta:focus-visible { outline: 2px solid rgba(123, 223, 242, 0.8); outline-offset: 2px; }
+.kpi--patreon {
+  border-color: rgba(255, 66, 77, 0.28);
+  background: linear-gradient(180deg, rgba(255, 66, 77, 0.18), rgba(255, 66, 77, 0.06));
+}
+.kpi--patreon:hover { border-color: rgba(255, 66, 77, 0.48); }
+.kpi--sponsor {
+  border-color: rgba(255, 77, 109, 0.26);
+  background: linear-gradient(180deg, rgba(255, 77, 109, 0.16), rgba(255, 77, 109, 0.05));
+}
+.kpi--sponsor:hover { border-color: rgba(255, 77, 109, 0.48); }
 .kpi--version {
   box-shadow: 0 18px 70px rgba(0, 0, 0, 0.35);
 }
