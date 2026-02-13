@@ -187,6 +187,50 @@ codeman upgrade
 
 `codeman upgrade` pulls from `origin` on the current branch and reapplies local install wiring.
 
+## Version Bumping
+
+Codeman uses the `VERSION` file for `codeman version`.
+
+### Bump version (SemVer)
+
+```bash
+codeman bump patch
+codeman bump minor
+codeman bump major
+```
+
+### Bump + commit + tag
+
+```bash
+codeman bump patch --commit --tag
+```
+
+This will:
+
+- update `VERSION`
+- create a git commit
+- create an annotated tag like `v0.1.1`
+
+## Shell Completion
+
+Generate a completion script and add it to your shell config.
+
+### zsh
+
+```bash
+codeman completion zsh > ~/.codeman-completion.zsh
+echo 'source ~/.codeman-completion.zsh' >> ~/.zshrc
+source ~/.zshrc
+```
+
+### bash
+
+```bash
+codeman completion bash > ~/.codeman-completion.bash
+echo 'source ~/.codeman-completion.bash' >> ~/.bashrc
+source ~/.bashrc
+```
+
 ## Repo Layout
 
 - `bin/codeman`: main command

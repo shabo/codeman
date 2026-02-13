@@ -251,6 +251,8 @@ USAGE
   codeman [--no-notify|-N] [--no-confirm|-y] [mode] [prompt_or_codex_args...]
   codeman [--no-notify|-N] [--no-confirm|-y] resume [mode] [resume_args...]
   codeman [--no-notify|-N] [--no-confirm|-y] fork [mode] [fork_args...]
+  codeman bump (major|minor|patch) [--commit] [--tag]
+  codeman completion (zsh|bash)
   codeman version
   codeman upgrade
   codeman prefix [show|set <value>|clear]
@@ -295,6 +297,8 @@ EXAMPLES
   codeman full autonomy "clean build artifacts"
   codeman resume l3 --last
   codeman resume l3 <session-uuid>
+  codeman bump patch --commit --tag
+  codeman completion zsh
   codeman notify-test
   codeman version
   codeman upgrade
@@ -376,6 +380,110 @@ print_version() {
     printf 'codeman v%s 🤖\n' "$ver"
   fi
   printf 'home: %s\n' "$REPO_ROOT"
+}
+
+parse_semver() {
+  # prints: "<major> <minor> <patch>" or returns non-zero
+  local v="$1"
+  if [[ "$v" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+    printf '%s %s %s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+    return 0
+  fi
+  return 1
+}
+
+bump_semver() {
+  # bump_semver <major|minor|patch> <version>
+  local kind="$1"
+  local v="$2"
+  local maj min pat
+  read -r maj min pat < <(parse_semver "$v") || return 1
+  case "$kind" in
+    major) maj=$((maj + 1)); min=0; pat=0 ;;
+    minor) min=$((min + 1)); pat=0 ;;
+    patch) pat=$((pat + 1)) ;;
+    *) return 1 ;;
+  esac
+  printf '%s.%s.%s\n' "$maj" "$min" "$pat"
+}
+
+run_bump() {
+  local kind="${1:-}"
+  shift || true
+
+  local do_commit=0
+  local do_tag=0
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --commit) do_commit=1; shift ;;
+      --tag) do_tag=1; shift ;;
+      *) echo "Unknown bump arg: $1" >&2; exit 2 ;;
+    esac
+  done
+
+  case "$kind" in
+    major|minor|patch) ;;
+    *)
+      echo "Usage: codeman bump (major|minor|patch) [--commit] [--tag]" >&2
+      exit 2
+      ;;
+  esac
+
+  local cur next
+  cur="$(read_version)"
+  if ! next="$(bump_semver "$kind" "$cur")"; then
+    echo "VERSION is not a plain semver (expected X.Y.Z): $cur" >&2
+    exit 2
+  fi
+
+  printf '%s\n' "$next" > "$VERSION_FILE"
+  echo "Bumped VERSION: $cur -> $next"
+
+  if [ "$do_commit" -eq 0 ] && [ "$do_tag" -eq 0 ]; then
+    return 0
+  fi
+
+  if ! command -v git >/dev/null 2>&1 || [ ! -d "$REPO_ROOT/.git" ]; then
+    echo "git checkout required for --commit/--tag" >&2
+    exit 2
+  fi
+
+  if [ "$do_tag" -eq 1 ] && [ "$do_commit" -eq 0 ]; then
+    echo "--tag requires --commit" >&2
+    exit 2
+  fi
+
+  if ! git -C "$REPO_ROOT" diff --quiet || ! git -C "$REPO_ROOT" diff --cached --quiet; then
+    # Allow uncommitted changes only if they are exactly VERSION_FILE after the bump.
+    if ! git -C "$REPO_ROOT" diff --name-only | rg -qx "VERSION" || ! git -C "$REPO_ROOT" diff --cached --quiet; then
+      echo "Working tree must be clean (except VERSION) to --commit/--tag." >&2
+      exit 2
+    fi
+  fi
+
+  git -C "$REPO_ROOT" add "$VERSION_FILE"
+  git -C "$REPO_ROOT" commit -m "chore: bump version to v$next"
+
+  if [ "$do_tag" -eq 1 ]; then
+    git -C "$REPO_ROOT" tag -a "v$next" -m "v$next"
+    echo "Created tag: v$next"
+  fi
+}
+
+run_completion() {
+  local shell="${1:-}"
+  case "$shell" in
+    zsh)
+      cat "$REPO_ROOT/completions/codeman.zsh"
+      ;;
+    bash)
+      cat "$REPO_ROOT/completions/codeman.bash"
+      ;;
+    *)
+      echo "Usage: codeman completion (zsh|bash)" >&2
+      exit 2
+      ;;
+  esac
 }
 
 is_mode() {
@@ -806,6 +914,14 @@ case "$cmd" in
     ;;
   aliases)
     print_aliases
+    ;;
+  bump)
+    shift
+    run_bump "$@"
+    ;;
+  completion)
+    shift
+    run_completion "$@"
     ;;
   version|-V|--version)
     print_version
