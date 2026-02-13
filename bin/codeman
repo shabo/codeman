@@ -895,7 +895,13 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
-set -- "${PARSED_ARGS[@]}"
+# Bash 3.2 + `set -u` treats expanding an empty array as "unbound variable".
+# Only expand when non-empty to support running `codeman` with no args.
+if [ "${#PARSED_ARGS[@]}" -gt 0 ]; then
+  set -- "${PARSED_ARGS[@]}"
+else
+  set --
+fi
 
 cmd_word="${1:-}"
 case "$cmd_word" in
