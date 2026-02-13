@@ -631,6 +631,7 @@ notify_with_cooldown() {
 }
 
 latest_session_file() {
+  # shellcheck disable=SC2012
   ls -1t "$HOME"/.codex/sessions/*/*/*/*.jsonl 2>/dev/null | head -n 1 || true
 }
 
@@ -823,12 +824,12 @@ run_codex() {
 
   if [ "$explicit_mode" -eq 1 ] && [ -z "$subcommand" ]; then
     local cmd_str
-    local -a cmd
-    cmd=(codex)
-    [ -n "$subcommand" ] && cmd+=("$subcommand")
-    cmd+=("${flags[@]}")
-    cmd+=("$@")
-    cmd_str="$(printf '%q ' "${cmd[@]}")"
+    local -a codex_cmd
+    codex_cmd=(codex)
+    [ -n "$subcommand" ] && codex_cmd+=("$subcommand")
+    codex_cmd+=("${flags[@]}")
+    codex_cmd+=("$@")
+    cmd_str="$(printf '%q ' "${codex_cmd[@]}")"
     cmd_str="${cmd_str% }"
     if [ "$will_confirm" -eq 1 ]; then
       confirm_mode_if_needed "$mode" "$subcommand" "$cmd_str" "$notify_text"
@@ -896,8 +897,8 @@ while [ "$#" -gt 0 ]; do
 done
 set -- "${PARSED_ARGS[@]}"
 
-cmd="${1:-}"
-case "$cmd" in
+cmd_word="${1:-}"
+case "$cmd_word" in
   "")
     print_mode_pick_hint
     exit 2
@@ -938,7 +939,7 @@ case "$cmd" in
     ;;
   resume|fork)
     shift
-    run_codex "$cmd" "$@"
+    run_codex "$cmd_word" "$@"
     ;;
   safe|cautious|balanced|autonomous|networked|full|reckless|full-autonomy|l1|l2|l3|l4|l5|l6|l7)
     run_codex "" "$@"
