@@ -191,6 +191,20 @@ codeman upgrade
 
 Codeman uses the `VERSION` file for `codeman version`.
 
+## Releases (Tags)
+
+This repo can auto-create a tag and GitHub Release on merge to `main` if `VERSION` was bumped.
+
+Workflow:
+
+1. Bump the version in your branch:
+   ```bash
+   codeman bump patch
+   ```
+2. Commit the `VERSION` change as part of your PR.
+3. Merge the PR to `main`.
+4. GitHub Actions will run CI, then create/push a tag like `v0.1.1` and create a GitHub Release (if the tag does not already exist).
+
 ### Bump version (SemVer)
 
 ```bash
