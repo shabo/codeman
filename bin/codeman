@@ -26,6 +26,7 @@ CONFIG_FILE="$CONFIG_DIR/config.env"
 
 CODEMAN_NOTIFY_LAST_WAIT=0
 CODEMAN_NOTIFY_LAST_COMPLETE=0
+CODEMAN_NOTIFY_LAST_REPLY=0
 CODEMAN_NOTIFY_SUPPRESS=0
 CODEMAN_CONFIRM="${CODEMAN_CONFIRM:-1}"
 CODEMAN_SAVED_NOTIFY_PREFIX="${CODEMAN_SAVED_NOTIFY_PREFIX:-}"
@@ -274,6 +275,9 @@ HIGH-RISK WARNING 🚨
 
 WEBHOOK NOTIFICATIONS 🔔
   Set CODEMAN_SLACK_WEBHOOK_URL and/or CODEMAN_DISCORD_WEBHOOK_URL.
+  You can set these in your shell (e.g. ~/.zshrc) or in:
+    ~/.config/codeman/config.env
+  (override the directory with CODEMAN_CONFIG_DIR).
   Triggered on:
   - wait/approval signals (sandbox denied, permission issues)
   - task completion
@@ -282,8 +286,9 @@ WEBHOOK NOTIFICATIONS 🔔
   - CODEMAN_NOTIFY_PREFIX="HOST-CODENAME"
   - CODEMAN_NOTIFY_HOST_CODENAME="HOST-CODENAME"
   - CODEMAN_NOTIFY_PROJECT_CODENAME="PROJECT-CODENAME"
-  - CODEMAN_NOTIFY_ON=wait,complete
+  - CODEMAN_NOTIFY_ON=wait,reply,complete
   - CODEMAN_NOTIFY_COOLDOWN_SEC=30
+  - CODEMAN_NOTIFY_REPLY_COOLDOWN_SEC=0
   - CODEMAN_NOTIFY_DISABLED=1
 
   Runtime flags:
@@ -530,7 +535,7 @@ mode_flags() {
 
 event_enabled() {
   local event="$1"
-  local configured="${CODEMAN_NOTIFY_ON:-wait,complete}"
+  local configured="${CODEMAN_NOTIFY_ON:-wait,reply,complete}"
   case ",$configured," in
     *",$event,"*) return 0 ;;
     *) return 1 ;;
@@ -610,7 +615,12 @@ notify_with_cooldown() {
   local message="$2"
   local cooldown now last
 
-  cooldown="${CODEMAN_NOTIFY_COOLDOWN_SEC:-30}"
+  # reply is typically wanted on every assistant response, so default it to no cooldown.
+  if [ "$kind" = "reply" ]; then
+    cooldown="${CODEMAN_NOTIFY_REPLY_COOLDOWN_SEC:-0}"
+  else
+    cooldown="${CODEMAN_NOTIFY_COOLDOWN_SEC:-30}"
+  fi
   now="$(date +%s)"
 
   if [ "$kind" = "wait" ]; then
@@ -619,6 +629,12 @@ notify_with_cooldown() {
       return 0
     fi
     CODEMAN_NOTIFY_LAST_WAIT="$now"
+  elif [ "$kind" = "reply" ]; then
+    last="$CODEMAN_NOTIFY_LAST_REPLY"
+    if [ $((now - last)) -lt "$cooldown" ]; then
+      return 0
+    fi
+    CODEMAN_NOTIFY_LAST_REPLY="$now"
   else
     last="$CODEMAN_NOTIFY_LAST_COMPLETE"
     if [ $((now - last)) -lt "$cooldown" ]; then
@@ -632,7 +648,8 @@ notify_with_cooldown() {
 
 latest_session_file() {
   # shellcheck disable=SC2012
-  ls -1t "$HOME"/.codex/sessions/*/*/*/*.jsonl 2>/dev/null | head -n 1 || true
+  local codex_home="${CODEX_HOME:-$HOME/.codex}"
+  ls -1t "$codex_home"/sessions/*/*/*/*.jsonl 2>/dev/null | head -n 1 || true
 }
 
 handle_session_line() {
@@ -651,6 +668,11 @@ handle_session_line() {
       evt="$(printf '%s\n' "$line" | jq -r '.payload.type // empty' 2>/dev/null || true)"
       if [ "$evt" = "task_complete" ] && event_enabled complete; then
         notify_with_cooldown complete "✅ ${prefix} 📁 ${project} 🚀 Codeman task complete (mode: ${mode})."
+      fi
+      # Fired when the assistant produces a user-visible message. This is the closest thing
+      # to "finished responding" while staying in an interactive Codex session.
+      if [ "$evt" = "agent_message" ] && event_enabled reply; then
+        notify_with_cooldown reply "💬 ${prefix} 📁 ${project} ✅ Codex replied (mode: ${mode})."
       fi
       ;;
     response_item)
@@ -856,6 +878,16 @@ run_codex() {
       rc=$?
     fi
     set -e
+
+    # Codex sessions currently don't emit a reliable "task_complete" event in the jsonl.
+    # Send a completion notification based on the process exit instead.
+    if event_enabled complete; then
+      if [ "${rc:-1}" -eq 0 ]; then
+        notify_with_cooldown complete "✅ ${prefix} 📁 ${project} 🚀 Codeman run complete (mode: ${mode})."
+      else
+        notify_with_cooldown complete "❌ ${prefix} 📁 ${project} 💥 Codeman exited with code ${rc} (mode: ${mode})."
+      fi
+    fi
 
     : > "$stop_file"
     wait "$monitor_pid" 2>/dev/null || true
