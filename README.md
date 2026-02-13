@@ -119,6 +119,12 @@ If Slack or Discord webhook is configured, Codeman can notify when:
      ```
 3. Persist it so it works in every terminal
    - Add the `export ...` line(s) to `~/.zshrc` (or `~/.bashrc`)
+   - Or add them to `~/.config/codeman/config.env` (sourced automatically by `codeman`)
+   - Template: `config/config.env.example`
+   - Optional: keep it in sync with the template:
+     ```bash
+     make config-sync
+     ```
    - Then reload your shell:
      ```bash
      source ~/.zshrc
@@ -131,7 +137,7 @@ If Slack or Discord webhook is configured, Codeman can notify when:
    - If you see `🔕 Webhook is configured, but notifications are disabled...`, remove `-N` or unset `CODEMAN_NOTIFY_DISABLED`.
 5. Choose when notifications should fire (optional)
    ```bash
-   export CODEMAN_NOTIFY_ON='wait,complete'
+   export CODEMAN_NOTIFY_ON='wait,reply,complete'
    ```
 6. Customize the label (optional)
    ```bash
@@ -161,8 +167,9 @@ Optional controls:
 export CODEMAN_NOTIFY_PREFIX='MBP-Blue'
 export CODEMAN_NOTIFY_HOST_CODENAME='MBP-Blue'
 export CODEMAN_NOTIFY_PROJECT_CODENAME='HiveCore'
-export CODEMAN_NOTIFY_ON='wait,complete'
+export CODEMAN_NOTIFY_ON='wait,reply,complete'
 export CODEMAN_NOTIFY_COOLDOWN_SEC=30
+export CODEMAN_NOTIFY_REPLY_COOLDOWN_SEC=0
 export CODEMAN_NOTIFY_DISABLED=1
 ```
 
