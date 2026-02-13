@@ -51,6 +51,8 @@ curl -fsSL https://raw.githubusercontent.com/shabo/codeman/main/install.sh | bas
 ### Local install from this checkout
 
 ```bash
+git clone https://github.com/shabo/codeman.git
+cd codeman
 ./install.sh --local
 source ~/.zshrc
 ```
