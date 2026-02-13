@@ -26,6 +26,7 @@
   --accent: #7bdff2;
   --accent2: #8ef29a;
   --patreon: #ff424d;
+  --sponsor: #ff4d6d;
   --warn: #ffd166;
   --danger: #ff4d6d;
   --shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
@@ -134,6 +135,11 @@ code { font-family: var(--mono); }
   border-color: rgba(255, 66, 77, 0.30);
 }
 .btn--patreon:hover { border-color: rgba(255, 66, 77, 0.48); }
+.btn--sponsor {
+  background: linear-gradient(180deg, rgba(255, 77, 109, 0.20), rgba(255, 77, 109, 0.07));
+  border-color: rgba(255, 77, 109, 0.30);
+}
+.btn--sponsor:hover { border-color: rgba(255, 77, 109, 0.50); }
 .btn:hover { text-decoration: none; border-color: rgba(255, 255, 255, 0.28); }
 .btn:focus-visible { outline: 2px solid rgba(123, 223, 242, 0.8); outline-offset: 2px; }
 

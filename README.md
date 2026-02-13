@@ -4,7 +4,27 @@
   <img src="assets/logo.png" alt="Codeman Logo" width="50%" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/sponsors/shabo">
+    <img
+      alt="Sponsor on GitHub"
+      src="https://img.shields.io/badge/GitHub-Sponsor-ff4d6d?logo=githubsponsors&logoColor=white"
+    />
+  </a>
+  <a href="https://www.patreon.com/shabers">
+    <img
+      alt="Support on Patreon"
+      src="https://img.shields.io/badge/Patreon-Support-FF424D?logo=patreon&logoColor=white"
+    />
+  </a>
+</p>
+
 Codeman is a thin launcher around `codex` that makes permission level selection explicit and fast.
+
+## Support
+
+- GitHub Sponsors: https://github.com/sponsors/shabo
+- Patreon: https://www.patreon.com/shabers
 
 ## Security Levels (low risk -> high risk) 🚨
 
