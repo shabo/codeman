@@ -255,12 +255,36 @@
       }
     }
 
+    var running = false;
+
+    function animateLeg(el, fromP, toP, fromA, toA, duration) {
+      function tf(p, rdeg) {
+        return "translate3d(" + (p.x - 17) + "px," + (p.y - 17) + "px,0) rotate(" + rdeg + "deg)";
+      }
+      var a = el.animate([
+        { transform: tf(fromP, fromA), offset: 0 },
+        { transform: tf(toP, toA), offset: 1 }
+      ], {
+        duration: duration,
+        easing: "cubic-bezier(0.2, 0.9, 0.2, 1)",
+        fill: "forwards"
+      });
+      return new Promise(function (resolve) {
+        a.onfinish = function () { resolve(); };
+      });
+    }
+
+    function sleep(ms) {
+      return new Promise(function (resolve) { setTimeout(resolve, ms); });
+    }
+
     function runRocket() {
       if (reducedMotion()) return;
+      if (running) return;
 
-      // Prefer the "GitHub" button in the header (repo link).
-      var githubBtn = qs('a[href*="github.com/shabo/codeman"]') || qs('a[href*="github.com/sponsors/shabo"]');
-      var patreonBtn = qs('a[href*="patreon.com/shabers"]');
+      // Use the pills under the logo if present (preferred), else fall back.
+      var githubBtn = qs(".kpi--sponsor") || qs('a[href*="github.com/sponsors/shabo"]') || qs('a[href*="github.com/shabo/codeman"]');
+      var patreonBtn = qs(".kpi--patreon") || qs('a[href*="patreon.com/shabers"]');
       if (!githubBtn || !patreonBtn) return;
       if (!inView(githubBtn) || !inView(patreonBtn)) return;
 
@@ -279,41 +303,39 @@
       var t01 = Math.round(d01 / speed);
       var t12 = Math.round(d12 / speed);
       var t23 = Math.round(d23 / speed);
-      var total = t01 + t12 + t23;
 
       var el = ensureRocket();
       el.style.display = "block";
-
-      function tf(p, rdeg) {
-        return "translate3d(" + (p.x - 17) + "px," + (p.y - 17) + "px,0) rotate(" + rdeg + "deg)";
-      }
+      running = true;
 
       var a01 = ang(p0, p1);
       var a12 = ang(p1, p2);
       var a23 = ang(p2, p3);
 
-      var anim = el.animate([
-        { transform: tf(p0, a01), offset: 0 },
-        { transform: tf(p1, a12), offset: t01 / total },
-        { transform: tf(p2, a23), offset: (t01 + t12) / total },
-        { transform: tf(p3, a23), offset: 1 }
-      ], {
-        duration: total,
-        easing: "cubic-bezier(0.2, 0.9, 0.2, 1)",
-        fill: "forwards"
-      });
+      var holdGitHubMs = 3000;
+      var dropDelayGitHubMs = 700;
+      var holdPatreonMs = 650;
 
-      setTimeout(function () {
-        spawnCash(p1.x, p1.y, 10, "$", 190);
-      }, t01);
-      setTimeout(function () {
-        spawnCash(p2.x, p2.y, 12, "$", 340);
-        spawnCash(p2.x + 10, p2.y + 6, 6, "💰", null);
-      }, t01 + t12);
-
-      anim.onfinish = function () {
-        el.style.display = "none";
-      };
+      animateLeg(el, p0, p1, a01, a01, t01)
+        .then(function () { return sleep(dropDelayGitHubMs).then(function () {
+          spawnCash(p1.x, p1.y, 10, "$", 190);
+        }); })
+        .then(function () { return sleep(Math.max(0, holdGitHubMs - dropDelayGitHubMs)); })
+        .then(function () { return animateLeg(el, p1, p2, a12, a12, t12); })
+        .then(function () {
+          spawnCash(p2.x, p2.y, 12, "$", 340);
+          spawnCash(p2.x + 10, p2.y + 6, 6, "💰", null);
+          return sleep(holdPatreonMs);
+        })
+        .then(function () { return animateLeg(el, p2, p3, a23, a23, t23); })
+        .then(function () {
+          el.style.display = "none";
+          running = false;
+        })
+        .catch(function () {
+          el.style.display = "none";
+          running = false;
+        });
     }
 
     // First run shortly after load, then loop.
