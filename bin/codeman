@@ -23,6 +23,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 VERSION_FILE="$REPO_ROOT/VERSION"
 CONFIG_DIR="${CODEMAN_CONFIG_DIR:-$HOME/.config/codeman}"
 CONFIG_FILE="$CONFIG_DIR/config.env"
+CODEX_HOME_DIR="${CODEX_HOME:-$HOME/.codex}"
 
 CODEMAN_NOTIFY_LAST_WAIT=0
 CODEMAN_NOTIFY_LAST_COMPLETE=0
@@ -644,7 +645,7 @@ notify_with_cooldown() {
 
 latest_session_file() {
   # shellcheck disable=SC2012
-  ls -1t "$HOME"/.codex/sessions/*/*/*/*.jsonl 2>/dev/null | head -n 1 || true
+  ls -1t "$CODEX_HOME_DIR"/sessions/*/*/*/*.jsonl 2>/dev/null | head -n 1 || true
 }
 
 handle_session_line() {
