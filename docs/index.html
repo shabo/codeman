@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Codeman</title>
+    <style>
+      :root { --bg: #0b0d10; --fg: #e9eef5; --muted: #9fb0c3; --card: #12161c; --accent: #7bdff2; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font: 16px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        background: radial-gradient(1200px 700px at 20% 10%, #142032, transparent 60%), var(--bg);
+        color: var(--fg);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .card {
+        width: min(840px, 100%);
+        background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+      }
+      h1 { margin: 0 0 10px; font-size: 40px; letter-spacing: -0.02em; }
+      p { margin: 0 0 14px; color: var(--muted); }
+      .test {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: rgba(123,223,242,0.10);
+        border: 1px solid rgba(123,223,242,0.25);
+        color: var(--fg);
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      code { color: var(--fg); }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Codeman</h1>
+      <p>Thin launcher around <code>codex</code>.</p>
+      <div class="test">TEST</div>
+      <p style="margin-top: 16px;">Source: <a href="https://github.com/shabo/codeman">github.com/shabo/codeman</a></p>
+    </main>
+  </body>
+</html>
