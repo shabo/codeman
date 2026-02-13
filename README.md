@@ -1,6 +1,8 @@
 # Codeman 🤖💻🔥
 
-<img src="assets/logo.png" alt="Codeman Logo" width="50%" />
+<p align="center">
+  <img src="assets/logo.png" alt="Codeman Logo" width="50%" />
+</p>
 
 Codeman is a thin launcher around `codex` that makes permission level selection explicit and fast.
 
