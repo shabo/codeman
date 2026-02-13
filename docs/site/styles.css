@@ -237,6 +237,7 @@ main { display: block; }
   gap: 10px;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
 }
 .hero__shots {
   max-width: 1100px;
@@ -624,4 +625,5 @@ main { display: block; }
 
 @media (min-width: 980px) {
   .hero h1 { white-space: nowrap; }
+  .hero__support { flex-wrap: nowrap; }
 }
