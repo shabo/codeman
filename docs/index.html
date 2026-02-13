@@ -18,7 +18,6 @@
       <div class="top__inner">
         <a class="brand" href="#top" aria-label="Codeman home">
           <span class="brand__name">Codeman</span>
-          <span class="brand__tag">elderberry.games</span>
         </a>
 
         <nav class="nav" aria-label="Site">
@@ -41,7 +40,7 @@
       <section class="hero" id="top">
         <div class="floatmark" aria-hidden="true">
           <div class="floatmark__glow"></div>
-          <img class="floatmark__logo" src="site/logo.png" alt="" width="72" height="72" />
+          <img class="floatmark__logo" src="site/logo.png" alt="" width="144" height="144" />
         </div>
 
         <div class="hero__grid">
@@ -82,27 +81,43 @@
           </div>
 
           <div class="hero__panel" aria-label="Terminal preview">
-            <div class="term">
+            <div class="term term--shot" aria-label="Screenshot: codeman l3 confirmation">
               <div class="term__bar">
                 <div class="term__dots" aria-hidden="true">
                   <span></span><span></span><span></span>
                 </div>
                 <div class="term__title">codeman l3</div>
               </div>
-              <pre class="term__pre"><code>╭──────────────────────────────────────────────────────────────╮
-│ Codeman mode confirmation                                     │
-├──────────────────────────────────────────────────────────────┤
-│ ✔ Mode selected                                               │
-│ Mode: l3                                                      │
-│ About: workspace-write + on-request approvals                 │
-│ Codex: codex -s workspace-write -a on-request                 │
-│ ℹ️ No Slack/Discord integration configured. There won't be... │
-╰──────────────────────────────────────────────────────────────╯
-Press Enter to continue (Ctrl-C to abort):</code></pre>
+              <a
+                class="term__shot"
+                href="site/screenshots/confirm.svg"
+                data-lightbox="confirm"
+                aria-label="Open screenshot: Confirmation panel"
+              >
+                <img class="term__img" src="site/screenshots/confirm.svg" alt="Codeman confirmation panel for an explicit mode selection." />
+              </a>
             </div>
-            <p class="hero__note">
-              Confirmation is TTY-only. Use <code>-y</code> to skip.
-            </p>
+
+            <div class="minishots" aria-label="More screenshots">
+              <a
+                class="minishot"
+                href="site/screenshots/modes.svg"
+                data-lightbox="modes"
+                aria-label="Open screenshot: Mode list"
+              >
+                <img src="site/screenshots/modes.svg" alt="Codeman printing the list of modes and notify status." />
+              </a>
+              <a
+                class="minishot"
+                href="site/screenshots/notify.svg"
+                data-lightbox="notify"
+                aria-label="Open screenshot: Notification test"
+              >
+                <img src="site/screenshots/notify.svg" alt="Codeman notification test output." />
+              </a>
+            </div>
+
+            <p class="hero__note">Click any screenshot to zoom. Use <code>-y</code> to skip confirmations.</p>
           </div>
         </div>
       </section>
@@ -350,15 +365,36 @@ codeman bump patch --commit --tag</code></pre>
 
         <div class="shots">
           <figure class="shot">
-            <img src="site/screenshots/modes.svg" alt="Codeman printing the list of modes and notify status." />
+            <a
+              class="shot__link"
+              href="site/screenshots/modes.svg"
+              data-lightbox="modes"
+              aria-label="Open screenshot: Mode list"
+            >
+              <img src="site/screenshots/modes.svg" alt="Codeman printing the list of modes and notify status." />
+            </a>
             <figcaption>Mode list (no args): explicit choice + notify status.</figcaption>
           </figure>
           <figure class="shot">
-            <img src="site/screenshots/confirm.svg" alt="Codeman confirmation panel for an explicit mode selection." />
+            <a
+              class="shot__link"
+              href="site/screenshots/confirm.svg"
+              data-lightbox="confirm"
+              aria-label="Open screenshot: Confirmation panel"
+            >
+              <img src="site/screenshots/confirm.svg" alt="Codeman confirmation panel for an explicit mode selection." />
+            </a>
             <figcaption>Confirmation panel: selected mode, meaning, full Codex command, then Enter.</figcaption>
           </figure>
           <figure class="shot">
-            <img src="site/screenshots/notify.svg" alt="Codeman notification test output." />
+            <a
+              class="shot__link"
+              href="site/screenshots/notify.svg"
+              data-lightbox="notify"
+              aria-label="Open screenshot: Notification test"
+            >
+              <img src="site/screenshots/notify.svg" alt="Codeman notification test output." />
+            </a>
             <figcaption>Notification test: clear failure modes and what to fix.</figcaption>
           </figure>
         </div>
