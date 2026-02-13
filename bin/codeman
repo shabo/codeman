@@ -160,7 +160,11 @@ confirm_mode_if_needed() {
   esac
 
   local -a cmd_lines
-  mapfile -t cmd_lines < <(printf '%s\n' "$cmd_str" | fold -s -w 96)
+  cmd_lines=()
+  # Bash 3.2 (macOS default) doesn't have `mapfile`.
+  while IFS= read -r _line; do
+    cmd_lines+=("$_line")
+  done < <(printf '%s\n' "$cmd_str" | fold -s -w 96)
 
   local -a lines
   lines+=("$status_line")
@@ -812,7 +816,12 @@ run_codex() {
     mode="balanced"
   fi
 
-  mapfile -t flags < <(mode_flags "$mode")
+  # Bash 3.2 (macOS default) doesn't have `mapfile`.
+  flags=()
+  while IFS= read -r _flag; do
+    [ -n "$_flag" ] || continue
+    flags+=("$_flag")
+  done < <(mode_flags "$mode")
 
   local notify_text
   notify_text="$(print_notify_status)"
