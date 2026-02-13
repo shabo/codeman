@@ -185,9 +185,9 @@
       var h = window.innerHeight || 0;
       return r.bottom > 0 && r.right > 0 && r.top < h && r.left < w;
     }
-    function center(el) {
+    function topCenter(el) {
       var r = el.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      return { x: r.left + r.width / 2, y: r.top };
     }
     var running = false;
 
@@ -196,7 +196,6 @@
     }
 
     var bag = null;
-    var poof = null;
     function ensureEls() {
       if (!bag) {
         bag = document.createElement("div");
@@ -205,25 +204,23 @@
         bag.textContent = "💰";
         document.body.appendChild(bag);
       }
-      if (!poof) {
-        poof = document.createElement("div");
-        poof.className = "poof";
-        poof.setAttribute("aria-hidden", "true");
-        document.body.appendChild(poof);
-      }
     }
 
     function animateDropTo(targetEl) {
       ensureEls();
-      var p = center(targetEl);
+      var p = topCenter(targetEl);
+      // Land on the *top edge* of the pill, not the center.
+      var bagSize = parseFloat(getComputedStyle(bag).fontSize) || 30;
+      var landY = p.y - (bagSize / 2) - 2;
       var start = { x: p.x + ((Math.random() * 40) - 20), y: -40 };
-      var end = { x: p.x, y: p.y - 2 };
+      var end = { x: p.x, y: landY };
       var dx = start.x - end.x;
       var dy = start.y - end.y;
 
       bag.style.display = "block";
       bag.style.left = end.x + "px";
       bag.style.top = end.y + "px";
+      bag.style.opacity = "1";
 
       var drop = bag.animate([
         { transform: "translate3d(" + dx + "px," + dy + "px,0) translate(-50%, -50%) scale(0.95)", offset: 0 },
@@ -237,59 +234,59 @@
 
       return new Promise(function (resolve) {
         drop.onfinish = function () {
-          resolve(p);
-        };
-      });
-    }
-
-    function animatePoofAt(p) {
-      ensureEls();
-      poof.style.display = "block";
-      poof.style.left = p.x + "px";
-      poof.style.top = p.y + "px";
-      var a = poof.animate([
-        { opacity: 0, transform: "translate(-50%, -50%) scale(0.6)" },
-        { opacity: 0.85, transform: "translate(-50%, -50%) scale(1.05)" },
-        { opacity: 0, transform: "translate(-50%, -50%) scale(1.4)" }
-      ], { duration: 520, easing: "ease-out", fill: "forwards" });
-      return new Promise(function (resolve) {
-        a.onfinish = function () {
-          poof.style.display = "none";
           resolve();
         };
       });
     }
 
-    function runDrops() {
+    function fadeBagOut() {
+      if (!bag) return Promise.resolve();
+      var a = bag.animate([
+        { opacity: 1, transform: "translate(-50%, -50%) scale(1)" },
+        { opacity: 0, transform: "translate(-50%, calc(-50% - 10px)) scale(0.98)" }
+      ], { duration: 1400, easing: "ease-out", fill: "forwards" });
+      return new Promise(function (resolve) {
+        a.onfinish = function () {
+          bag.style.display = "none";
+          resolve();
+        };
+      });
+    }
+
+    function dropOnce(targetEl) {
       if (reducedMotion()) return;
       if (running) return;
-
-      // Use the pills under the logo if present (preferred), else fall back.
-      var githubBtn = qs(".kpi--sponsor") || qs('a[href*="github.com/sponsors/shabo"]') || qs('a[href*="github.com/shabo/codeman"]');
-      var patreonBtn = qs(".kpi--patreon") || qs('a[href*="patreon.com/shabers"]');
-      if (!githubBtn || !patreonBtn) return;
-      if (!inView(githubBtn) || !inView(patreonBtn)) return;
-
       running = true;
 
-      animateDropTo(githubBtn)
-        .then(function (p) { return sleep(450).then(function () { return animatePoofAt(p); }); })
-        .then(function () { bag.style.display = "none"; return sleep(3000); })
-        .then(function () { return animateDropTo(patreonBtn); })
-        .then(function (p2) { return sleep(450).then(function () { return animatePoofAt(p2); }); })
-        .then(function () { bag.style.display = "none"; })
+      animateDropTo(targetEl)
+        .then(function () { return sleep(160); })
+        .then(function () { return fadeBagOut(); })
         .then(function () {
           running = false;
         })
         .catch(function () {
           if (bag) bag.style.display = "none";
-          if (poof) poof.style.display = "none";
           running = false;
         });
     }
 
-    // First run shortly after load, then loop.
-    setTimeout(runDrops, 1600);
-    setInterval(runDrops, 15000);
+    function tickFactory() {
+      var onGitHub = true;
+      return function tick() {
+        // Use the pills under the logo if present (preferred), else fall back.
+        var githubBtn = qs(".kpi--sponsor") || qs('a[href*="github.com/sponsors/shabo"]') || qs('a[href*="github.com/shabo/codeman"]');
+        var patreonBtn = qs(".kpi--patreon") || qs('a[href*="patreon.com/shabers"]');
+        if (!githubBtn || !patreonBtn) return;
+        if (!inView(githubBtn) || !inView(patreonBtn)) return;
+
+        dropOnce(onGitHub ? githubBtn : patreonBtn);
+        onGitHub = !onGitHub;
+      };
+    }
+
+    // Every 3s: GitHub, then Patreon, repeating.
+    var tick = tickFactory();
+    setTimeout(tick, 900);
+    setInterval(tick, 3000);
   })();
 })();
