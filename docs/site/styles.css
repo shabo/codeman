@@ -141,7 +141,7 @@ main { display: block; }
   position: relative;
   pointer-events: none;
   align-self: start;
-  justify-self: start;
+  justify-self: end;
 }
 .floatmark__logo {
   width: clamp(110px, 14vw, 144px);
