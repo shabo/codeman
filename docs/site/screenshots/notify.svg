@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#0d121b"/>
+      <stop offset="1" stop-color="#07090c"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#101826"/>
+      <stop offset="1" stop-color="#0b1018"/>
+    </linearGradient>
+    <style>
+      .frame { fill: rgba(255,255,255,0.06); stroke: rgba(255,255,255,0.12); stroke-width: 2; }
+      .bar { fill: url(#bar); }
+      .dot1 { fill: #ff5f56; }
+      .dot2 { fill: #ffbd2e; }
+      .dot3 { fill: #27c93f; }
+      .title { fill: rgba(234,241,255,0.75); font: 600 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      .code { fill: #eaf1ff; font: 14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      .muted { fill: rgba(234,241,255,0.70); }
+      .ok { fill: #8ef29a; }
+      .warn { fill: #ffd166; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1120" height="680" fill="url(#bg)"/>
+
+  <rect x="44" y="46" width="1032" height="588" rx="18" class="frame"/>
+  <rect x="44" y="46" width="1032" height="56" rx="18" class="bar"/>
+  <circle cx="78" cy="74" r="7" class="dot1"/>
+  <circle cx="100" cy="74" r="7" class="dot2"/>
+  <circle cx="122" cy="74" r="7" class="dot3"/>
+  <text x="160" y="79" class="title">codeman notify-test</text>
+
+  <g transform="translate(78,132)">
+    <text class="code muted" x="0" y="0">Case A (not configured):</text>
+    <text class="code" x="0" y="28">ℹ️ No Slack/Discord integration configured. There won't be notifications.</text>
+
+    <text class="code muted" x="0" y="84">Case B (configured but disabled):</text>
+    <text class="code" x="0" y="112">🔕 Webhook is configured, but notifications are disabled (-N or CODEMAN_NOTIFY_DISABLED=1).</text>
+
+    <text class="code muted" x="0" y="168">Case C (configured):</text>
+    <text class="code ok" x="0" y="196">Webhook notification test sent (if webhook URL is valid).</text>
+
+    <text class="code muted" x="0" y="252">Fix:</text>
+    <text class="code" x="0" y="280">export CODEMAN_DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/...'</text>
+    <text class="code" x="0" y="306">source ~/.zshrc</text>
+  </g>
+</svg>
+

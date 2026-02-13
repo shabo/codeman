@@ -3,48 +3,380 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
     <title>Codeman</title>
-    <style>
-      :root { --bg: #0b0d10; --fg: #e9eef5; --muted: #9fb0c3; --card: #12161c; --accent: #7bdff2; }
-      html, body { height: 100%; }
-      body {
-        margin: 0;
-        font: 16px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        background: radial-gradient(1200px 700px at 20% 10%, #142032, transparent 60%), var(--bg);
-        color: var(--fg);
-        display: grid;
-        place-items: center;
-        padding: 24px;
-      }
-      .card {
-        width: min(840px, 100%);
-        background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
-        border: 1px solid rgba(255,255,255,0.10);
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 18px 60px rgba(0,0,0,0.45);
-      }
-      h1 { margin: 0 0 10px; font-size: 40px; letter-spacing: -0.02em; }
-      p { margin: 0 0 14px; color: var(--muted); }
-      .test {
-        margin-top: 18px;
-        padding: 14px 16px;
-        border-radius: 12px;
-        background: rgba(123,223,242,0.10);
-        border: 1px solid rgba(123,223,242,0.25);
-        color: var(--fg);
-      }
-      a { color: var(--accent); text-decoration: none; }
-      a:hover { text-decoration: underline; }
-      code { color: var(--fg); }
-    </style>
+    <meta name="description" content="Codeman is a thin launcher around codex that makes permission level selection explicit and fast." />
+
+    <link rel="preload" href="site/fonts/Agave-Regular.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="site/fonts/Agave-Bold.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="stylesheet" href="site/styles.css" />
   </head>
   <body>
-    <main class="card">
-      <h1>Codeman</h1>
-      <p>Thin launcher around <code>codex</code>.</p>
-      <div class="test">TEST</div>
-      <p style="margin-top: 16px;">Source: <a href="https://github.com/shabo/codeman">github.com/shabo/codeman</a></p>
+    <a class="skip" href="#content">Skip to content</a>
+
+    <header class="top">
+      <div class="top__inner">
+        <a class="brand" href="#top" aria-label="Codeman home">
+          <img class="brand__logo" src="site/logo.png" alt="" width="28" height="28" />
+          <span class="brand__name">Codeman</span>
+          <span class="brand__tag">elderberry.games</span>
+        </a>
+
+        <nav class="nav" aria-label="Site">
+          <a href="#quickstart">Quick start</a>
+          <a href="#modes">Modes</a>
+          <a href="#notify">Notifications</a>
+          <a href="#completion">Completion</a>
+          <a href="#releases">Releases</a>
+          <a href="#shots">Screens</a>
+        </nav>
+
+        <div class="top__cta">
+          <a class="btn btn--ghost" href="https://github.com/shabo/codeman">GitHub</a>
+          <a class="btn btn--primary" href="#quickstart">Get started</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="content">
+      <section class="hero" id="top">
+        <div class="hero__grid">
+          <div class="hero__copy">
+            <div class="pill">
+              <span class="pill__dot" aria-hidden="true"></span>
+              explicit Codex permission levels
+            </div>
+
+            <h1>
+              Run <span class="accent">Codex</span> with<br />
+              eyes-open permissions.
+            </h1>
+            <p class="lede">
+              Codeman is a thin launcher around <code>codex</code> that makes sandbox and approval selection explicit, fast,
+              and harder to get wrong.
+            </p>
+
+            <div class="hero__actions">
+              <a class="btn btn--primary" href="#quickstart">Install</a>
+              <a class="btn btn--ghost" href="#modes">Pick a mode</a>
+            </div>
+
+            <div class="hero__meta" role="list">
+              <div class="kpi" role="listitem">
+                <div class="kpi__k">Defaults</div>
+                <div class="kpi__v">explicit</div>
+              </div>
+              <div class="kpi" role="listitem">
+                <div class="kpi__k">Pages</div>
+                <div class="kpi__v">/docs</div>
+              </div>
+              <div class="kpi" role="listitem">
+                <div class="kpi__k">Version</div>
+                <div class="kpi__v" id="version">v0.1.0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero__panel" aria-label="Terminal preview">
+            <div class="term">
+              <div class="term__bar">
+                <div class="term__dots" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="term__title">codeman l3</div>
+              </div>
+              <pre class="term__pre"><code>╭──────────────────────────────────────────────────────────────╮
+│ Codeman mode confirmation                                     │
+├──────────────────────────────────────────────────────────────┤
+│ ✔ Mode selected                                               │
+│ Mode: l3                                                      │
+│ About: workspace-write + on-request approvals                 │
+│ Codex: codex -s workspace-write -a on-request                 │
+│ ℹ️ No Slack/Discord integration configured. There won't be... │
+╰──────────────────────────────────────────────────────────────╯
+Press Enter to continue (Ctrl-C to abort):</code></pre>
+            </div>
+            <p class="hero__note">
+              Confirmation is TTY-only. Use <code>-y</code> to skip.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="quickstart">
+        <div class="section__head">
+          <h2>Quick start</h2>
+          <p>Install once, then pick a mode explicitly every time.</p>
+        </div>
+
+        <div class="cols">
+          <div class="card">
+            <h3>Remote install</h3>
+            <p class="muted">Recommended when you just want it working.</p>
+            <div class="code" data-copy>
+              <button class="copy" type="button" aria-label="Copy install command">Copy</button>
+              <pre><code>curl -fsSL https://raw.githubusercontent.com/shabo/codeman/main/install.sh | bash -s -- --repo https://github.com/shabo/codeman.git</code></pre>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Local install</h3>
+            <p class="muted">From a checkout of this repository.</p>
+            <div class="code" data-copy>
+              <button class="copy" type="button" aria-label="Copy local install commands">Copy</button>
+              <pre><code>./install.sh --local
+source ~/.zshrc</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="modes">
+        <div class="section__head">
+          <h2>Security levels</h2>
+          <p>Low risk to high risk. Emoji and description are separate for fast scanning.</p>
+        </div>
+
+        <div class="tablewrap">
+          <table class="tbl" aria-label="Codeman security levels">
+            <thead>
+              <tr>
+                <th>Level</th>
+                <th>Name</th>
+                <th>Risk</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>l1</code></td>
+                <td><code>safe</code></td>
+                <td>🟢</td>
+                <td>read-only sandbox + strict approvals</td>
+              </tr>
+              <tr>
+                <td><code>l2</code></td>
+                <td><code>cautious</code></td>
+                <td>🟢</td>
+                <td>workspace-write + strict approvals</td>
+              </tr>
+              <tr>
+                <td><code>l3</code></td>
+                <td><code>balanced</code></td>
+                <td>🟡</td>
+                <td>workspace-write + on-request approvals</td>
+              </tr>
+              <tr>
+                <td><code>l4</code></td>
+                <td><code>autonomous</code></td>
+                <td>🟡</td>
+                <td>workspace-write + on-failure approvals</td>
+              </tr>
+              <tr>
+                <td><code>l5</code></td>
+                <td><code>networked</code></td>
+                <td>🟠</td>
+                <td><code>l4</code> + network access</td>
+              </tr>
+              <tr>
+                <td><code>l6</code></td>
+                <td><code>full</code></td>
+                <td>🔴</td>
+                <td>danger-full-access + no approvals</td>
+              </tr>
+              <tr>
+                <td><code>l7</code></td>
+                <td><code>reckless</code></td>
+                <td>🚨</td>
+                <td>bypass sandbox + bypass approvals</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout--warn" role="note">
+          <div class="callout__icon" aria-hidden="true">⚠</div>
+          <div>
+            <strong>High-risk warning.</strong> <code>l6</code>/<code>l7</code> can run destructive commands, including file deletions.
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="usage">
+        <div class="section__head">
+          <h2>Usage</h2>
+          <p>Codeman is intentionally blunt. You either pick a mode or you don’t run.</p>
+        </div>
+
+        <div class="cols">
+          <div class="card">
+            <h3>No args</h3>
+            <p class="muted">Prints the mode list and the current notification status.</p>
+            <div class="code" data-copy>
+              <button class="copy" type="button" aria-label="Copy no-args usage">Copy</button>
+              <pre><code>codeman</code></pre>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Explicit mode</h3>
+            <p class="muted">Shows a confirmation panel, then asks you to press Enter (TTY-only).</p>
+            <div class="code" data-copy>
+              <button class="copy" type="button" aria-label="Copy explicit mode usage">Copy</button>
+              <pre><code>codeman l3
+codeman -y l3 "skip confirmation"</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Resume by session UUID</h3>
+          <p class="muted">If you have a UUID (from Codex sessions), you can resume it directly.</p>
+          <div class="code" data-copy>
+            <button class="copy" type="button" aria-label="Copy resume usage">Copy</button>
+            <pre><code>codeman resume l3 &lt;session-uuid&gt;</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="notify">
+        <div class="section__head">
+          <h2>Slack/Discord notifications</h2>
+          <p>Baby steps. It either works or it tells you exactly why it doesn’t.</p>
+        </div>
+
+        <div class="steps">
+          <div class="step">
+            <div class="step__n">1</div>
+            <div class="step__body">
+              <h3>Create a webhook URL</h3>
+              <p class="muted">Slack: Incoming Webhook. Discord: channel webhook.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step__n">2</div>
+            <div class="step__body">
+              <h3>Export it in your shell</h3>
+              <div class="code" data-copy>
+                <button class="copy" type="button" aria-label="Copy notification env vars">Copy</button>
+                <pre><code>export CODEMAN_DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/...'
+export CODEMAN_SLACK_WEBHOOK_URL='https://hooks.slack.com/services/...'</code></pre>
+              </div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step__n">3</div>
+            <div class="step__body">
+              <h3>Persist it</h3>
+              <p class="muted">Put the exports into <code>~/.zshrc</code> (or <code>~/.bashrc</code>), then reload.</p>
+              <div class="code" data-copy>
+                <button class="copy" type="button" aria-label="Copy shell reload command">Copy</button>
+                <pre><code>source ~/.zshrc</code></pre>
+              </div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step__n">4</div>
+            <div class="step__body">
+              <h3>Test</h3>
+              <div class="code" data-copy>
+                <button class="copy" type="button" aria-label="Copy notify test command">Copy</button>
+                <pre><code>codeman notify-test</code></pre>
+              </div>
+              <p class="muted">
+                If you see <code>ℹ️ No Slack/Discord integration configured</code>, the env var isn’t set in this shell.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="completion">
+        <div class="section__head">
+          <h2>Shell completion</h2>
+          <p>Generate the completion script and source it.</p>
+        </div>
+
+        <div class="cols">
+          <div class="card">
+            <h3>zsh</h3>
+            <div class="code" data-copy>
+              <button class="copy" type="button" aria-label="Copy zsh completion setup">Copy</button>
+              <pre><code>codeman completion zsh &gt; ~/.codeman-completion.zsh
+echo 'source ~/.codeman-completion.zsh' &gt;&gt; ~/.zshrc
+source ~/.zshrc</code></pre>
+            </div>
+          </div>
+          <div class="card">
+            <h3>bash</h3>
+            <div class="code" data-copy>
+              <button class="copy" type="button" aria-label="Copy bash completion setup">Copy</button>
+              <pre><code>codeman completion bash &gt; ~/.codeman-completion.bash
+echo 'source ~/.codeman-completion.bash' &gt;&gt; ~/.bashrc
+source ~/.bashrc</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="releases">
+        <div class="section__head">
+          <h2>Releases</h2>
+          <p>Bump <code>VERSION</code> in your PR. Merge to <code>main</code>. CI passes. Tag + GitHub Release are created.</p>
+        </div>
+
+        <div class="card">
+          <h3>Bump version</h3>
+          <div class="code" data-copy>
+            <button class="copy" type="button" aria-label="Copy version bump commands">Copy</button>
+            <pre><code>codeman bump patch
+codeman bump patch --commit --tag</code></pre>
+          </div>
+          <p class="muted">
+            The GitHub Action will create a release for <code>vX.Y.Z</code> only if that tag does not already exist.
+          </p>
+        </div>
+      </section>
+
+      <section class="section" id="shots">
+        <div class="section__head">
+          <h2>Screenshots</h2>
+          <p>Realistic terminal captures of Codeman in action. Static and deterministic.</p>
+        </div>
+
+        <div class="shots">
+          <figure class="shot">
+            <img src="site/screenshots/modes.svg" alt="Codeman printing the list of modes and notify status." />
+            <figcaption>Mode list (no args): explicit choice + notify status.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="site/screenshots/confirm.svg" alt="Codeman confirmation panel for an explicit mode selection." />
+            <figcaption>Confirmation panel: selected mode, meaning, full Codex command, then Enter.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="site/screenshots/notify.svg" alt="Codeman notification test output." />
+            <figcaption>Notification test: clear failure modes and what to fix.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section section--tight">
+        <div class="footer">
+          <div class="footer__left">
+            <div class="footer__brand">
+              <img src="site/logo.png" alt="" width="22" height="22" />
+              <span>Codeman</span>
+            </div>
+            <div class="muted">Hosted at <code>codeman.elderberry.games</code>.</div>
+          </div>
+          <div class="footer__right muted">
+            Font: Agave (see <a href="site/fonts/Agave-LICENSE">license</a>) · Source: <a href="https://github.com/shabo/codeman">GitHub</a>
+          </div>
+        </div>
+      </section>
     </main>
+
+    <script src="site/app.js"></script>
   </body>
 </html>
+
