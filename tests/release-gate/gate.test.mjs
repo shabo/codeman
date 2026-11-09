@@ -48,7 +48,7 @@ const untrustedValues = {
   conclusion: ["failure", "cancelled", "skipped", "", null],
   event: ["pull_request", "pull_request_target", "workflow_dispatch", "schedule", "", null],
   head_branch: ["develop", "refs/heads/main", "", null],
-  path: [".github/workflows/other.yml", "", null],
+  path: [".github/workflows/other.yml", ".github/workflows/ci.yml@main", "", null],
 };
 
 for (const [field, values] of Object.entries(untrustedValues)) {
@@ -119,6 +119,10 @@ test("the trigger stays limited to completed CI runs on main", () => {
 test("CI push trigger stays limited to main", () => {
   // Expression == ignores case, so MAIN passes the gate. This filter is case sensitive.
   assert.deepEqual(workflow("ci.yml").on.push.branches, ["main"]);
+});
+
+test("the gated job is the only job", () => {
+  assert.deepEqual(Object.keys(release.jobs), ["tag_and_release"]);
 });
 
 test("the gate is on the job, so no step runs when it closes", () => {
