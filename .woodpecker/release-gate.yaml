@@ -1,0 +1,14 @@
+# Offline regression cases for the release job gate in release.yml.
+labels:
+  platform: linux/amd64
+when:
+  - event: pull_request
+  - event: push
+    branch: main
+steps:
+  - name: release-gate
+    image: node:26.13.0-bookworm-slim@sha256:add5c17c14752c54d2f3d519ec46a3815684d41c33f198bcb09fb998f7dcbf68
+    commands:
+      - cd tests/release-gate
+      - npm ci --ignore-scripts
+      - node --test

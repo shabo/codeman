@@ -15,7 +15,15 @@ concurrency:
 
 jobs:
   tag_and_release:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Run only after a successful CI push to main in this repository.
+    # Compare with fixed values: in an expression, null can equal null.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.path == '.github/workflows/ci.yml' &&
+      github.event.workflow_run.repository.full_name == 'shabo/codeman' &&
+      github.event.workflow_run.head_repository.full_name == 'shabo/codeman'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
