@@ -1,6 +1,7 @@
 # Tag and release. Replaces the GitHub Actions release job (release.yml).
 # It runs only on a push to main, after the ci workflow passes.
 # Secret codeman_release_token: GitHub token with contents write on shabo/codeman.
+# Woodpecker runs the commands with /bin/sh: keep the script POSIX sh.
 labels:
   platform: linux/amd64
 when:
@@ -16,11 +17,11 @@ steps:
         from_secret: codeman_release_token
     commands:
       - |
-        set -euo pipefail
+        set -eu
         apt-get update -qq
         apt-get install -y -qq --no-install-recommends ca-certificates curl git jq >/dev/null
         ver="$$(tr -d '[:space:]' < VERSION)"
-        if [[ ! "$$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        if ! printf '%s\n' "$$ver" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+'; then
           echo "VERSION must be X.Y.Z, got: $$ver" >&2
           exit 1
         fi
