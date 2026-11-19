@@ -1,5 +1,5 @@
 # Shell checks. Moved from GitHub Actions without a change to the checks.
-# The tag and release job stays on GitHub Actions: it needs a write credential that does not exist yet.
+# The tag and release job moves to .woodpecker/release.yaml in a separate change.
 labels:
   platform: linux/amd64
 when:
