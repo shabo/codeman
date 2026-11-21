@@ -244,11 +244,12 @@ codeman -y l3 "skip confirmation"</code></pre>
         </div>
       </section>
 
-      <section class="section" id="notify">
-        <div class="section__head">
-          <h2>Slack/Discord notifications</h2>
-          <p>Baby steps. It either works or it tells you exactly why it doesn’t.</p>
-        </div>
+	      <section class="section" id="notify">
+	        <div class="section__head">
+	          <h2>Slack/Discord notifications</h2>
+	          <p>Baby steps. It either works or it tells you exactly why it doesn’t.</p>
+	          <p class="muted">Notifications only fire when you run Codex via <code>codeman</code> (for example <code>codeman l3</code>), not <code>codex</code> directly.</p>
+	        </div>
 
         <div class="steps">
           <div class="step">
@@ -258,43 +259,74 @@ codeman -y l3 "skip confirmation"</code></pre>
               <p class="muted">Slack: Incoming Webhook. Discord: channel webhook.</p>
             </div>
           </div>
-          <div class="step">
-            <div class="step__n">2</div>
-            <div class="step__body">
-              <h3>Export it in your shell</h3>
-              <div class="code" data-copy>
-                <button class="copy" type="button" aria-label="Copy notification env vars">Copy</button>
-                <pre><code>export CODEMAN_DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/...'
-export CODEMAN_SLACK_WEBHOOK_URL='https://hooks.slack.com/services/...'</code></pre>
-              </div>
-            </div>
-          </div>
-          <div class="step">
-            <div class="step__n">3</div>
-            <div class="step__body">
-              <h3>Persist it</h3>
-              <p class="muted">Put the exports into <code>~/.zshrc</code> (or <code>~/.bashrc</code>), then reload.</p>
-              <div class="code" data-copy>
-                <button class="copy" type="button" aria-label="Copy shell reload command">Copy</button>
-                <pre><code>source ~/.zshrc</code></pre>
-              </div>
-            </div>
-          </div>
-          <div class="step">
-            <div class="step__n">4</div>
-            <div class="step__body">
-              <h3>Test</h3>
+	          <div class="step">
+	            <div class="step__n">2</div>
+	            <div class="step__body">
+	              <h3>Set the webhook URL</h3>
+	              <p class="muted">
+	                Put it in your shell (<code>~/.zshrc</code>/<code>~/.bashrc</code>) or in
+	                <code>~/.config/codeman/config.env</code> (sourced automatically by <code>codeman</code>).
+	              </p>
+	              <div class="code" data-copy>
+	                <button class="copy" type="button" aria-label="Copy notification env vars">Copy</button>
+	                <pre><code># Option A: shell
+export CODEMAN_DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/...'
+export CODEMAN_SLACK_WEBHOOK_URL='https://hooks.slack.com/services/...'
+
+# Option B: ~/.config/codeman/config.env (no export needed)
+CODEMAN_DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/...'
+CODEMAN_SLACK_WEBHOOK_URL='https://hooks.slack.com/services/...'</code></pre>
+	              </div>
+	            </div>
+	          </div>
+		          <div class="step">
+		            <div class="step__n">3</div>
+		            <div class="step__body">
+		              <h3>Persist it</h3>
+		              <p class="muted">
+		                Shell: put the exports into <code>~/.zshrc</code> (or <code>~/.bashrc</code>), then reload.
+		                For <code>config.env</code>, use the template in the repo at <code>config/config.env.example</code>
+		                (it’s sourced on every <code>codeman</code> run). Optionally keep it synced with template updates:
+		              </p>
+		              <div class="code" data-copy>
+		                <button class="copy" type="button" aria-label="Copy persist commands">Copy</button>
+		                <pre><code># shell
+source ~/.zshrc
+
+# in a repo checkout (optional)
+make config-sync</code></pre>
+		              </div>
+		            </div>
+		          </div>
+	          <div class="step">
+	            <div class="step__n">4</div>
+	            <div class="step__body">
+	              <h3>Test</h3>
               <div class="code" data-copy>
                 <button class="copy" type="button" aria-label="Copy notify test command">Copy</button>
                 <pre><code>codeman notify-test</code></pre>
               </div>
               <p class="muted">
                 If you see <code>ℹ️ No Slack/Discord integration configured</code>, the env var isn’t set in this shell.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+	              </p>
+	            </div>
+	          </div>
+	          <div class="step">
+	            <div class="step__n">5</div>
+	            <div class="step__body">
+	              <h3>Choose when notifications fire (optional)</h3>
+	              <p class="muted">
+	                <code>reply</code> notifies when Codex produces a user-visible assistant message (useful for interactive sessions).
+	              </p>
+	              <div class="code" data-copy>
+	                <button class="copy" type="button" aria-label="Copy notification controls">Copy</button>
+	                <pre><code>export CODEMAN_NOTIFY_ON='wait,reply,complete'
+export CODEMAN_NOTIFY_REPLY_COOLDOWN_SEC=0</code></pre>
+	              </div>
+	            </div>
+	          </div>
+	        </div>
+	      </section>
 
       <section class="section" id="completion">
         <div class="section__head">
